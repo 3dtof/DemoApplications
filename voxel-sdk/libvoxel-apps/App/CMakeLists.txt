@@ -15,7 +15,7 @@ target_link_libraries(RobotDemo /usr/local/lib/libserial.a ${VOXEL_PCL_LIBRARIES
 add_executable(RobotUnitTest RobotUnitTest.cpp irobot_serial.cpp)
 target_link_libraries(RobotUnitTest /usr/local/lib/libserial.a ${VOXEL_PCL_LIBRARIES})
 
-add_executable(TVDemo TVDemo.cpp)
+add_executable(TVDemo TVDemo.cpp GestureRemote.cpp )
 target_link_libraries(TVDemo ${VOXEL_PCL_LIBRARIES})
 
 install(TARGETS SimpleVoxelViewer VoxelCLI
