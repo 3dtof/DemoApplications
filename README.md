@@ -38,7 +38,6 @@ Prerelease Calculus demo
 
 <h1>Build:</h1>
 To build the code, first `cd` into the right directory:
- 
        ```
   	$ cd 3dtof/CalculusDemo
   	$ source setup.sh
@@ -46,7 +45,6 @@ To build the code, first `cd` into the right directory:
        ```
   
 There are four subdirectories, libvoxel, libti3dtof, libvoxelpcl, libvoxel-app; each require seperate builds. To build them, simple repeat the below steps for each, in the order I just listed, except libvoxel-app; for that, replace 'sudo make install' with 'make':
-
        ```
   	$ cd <directory>; mkdir build; cd build
   	$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr ..
