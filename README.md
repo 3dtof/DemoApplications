@@ -1,7 +1,7 @@
 # CalculusDemo
 Prerelease Calculus demo
 
-=Prerequisits:
+<h1>Prerequisits:</h1>
 
 * Point Cloud Library
 	$ sudo add-apt-repository ppa:v-launchpad-jochen-sprickerhof-de/pcl
@@ -16,7 +16,7 @@ Prerelease Calculus demo
 * Voxel SDK (with demo code; login required)
   	$ git clone https://github.com/3dtof/CalculusDemo.git
 
-=Build:
+<h1>Build:</h1>
   $ cd 3dtof/CalculusDemo
   $ source setup.sh
   $ cd voxel-sdk
