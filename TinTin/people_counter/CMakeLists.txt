@@ -7,7 +7,7 @@ FIND_PACKAGE(Qt5Widgets REQUIRED)
 ENDIF()
 
 add_definitions(${PCL_DEFINITIONS})
-add_definitions(-msse2 -pthread -std=c++11 -fPIC -ffast-math)
+add_definitions(-pthread -std=c++11 -fPIC -ffast-math)
 
 set(VOXEL_INCLUDE_DIRS . /usr/include/voxel /usr/include/voxel/pcl )
 set(VOXEL_LIBRARIES /usr/lib/libti3dtof.so /usr/lib/libvoxel.so /usr/lib/libvoxelpcl.so)

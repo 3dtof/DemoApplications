@@ -16,8 +16,8 @@ using namespace std;
 using namespace Voxel;
 using namespace pcl::visualization;
 
-#define XDIM		160 
-#define YDIM		120	
+#define XDIM		80 
+#define YDIM		60	
 #define MAX_DIST	3
 
 
@@ -67,7 +67,7 @@ int main (int argc, char* argv[])
   logger.setDefaultLogLevel(LOG_INFO);
   CameraSystem sys;
   DepthCameraPtr depthCamera;
-  ClusterMap cmap(0.8, 0.4, 3);
+  ClusterMap cmap(0.7, 0.4, 2);
   DepthFrame d, bkgnd;
   FrameSize frame_sz;
 
