@@ -18,14 +18,13 @@ using namespace pcl::visualization;
 
 #define XDIM		80 
 #define YDIM		60	
-#define MAX_DIST	3
-
+#define SCALE		8
+#define MAX_AMPLITUDE   5
 
 deque < DepthFrame > qFrame;
 DepthFrame *frm;
-
-int getkey();
-
+float ampGain = 200;
+ 
 int getkey() {
     int character;
     struct termios orig_term_attr;
@@ -49,6 +48,58 @@ int getkey() {
     return character;
 }
 
+float bilinearInterpolation(float q11, float q12, float q21, float q22, float x1, float x2, float y1, float y2, float x, float y) 
+{
+    float x2x1, y2y1, x2x, y2y, yy1, xx1;
+    x2x1 = x2 - x1;
+    y2y1 = y2 - y1;
+    x2x = x2 - x;
+    y2y = y2 - y;
+    yy1 = y - y1;
+    xx1 = x - x1;
+    return 1.0 / (x2x1 * y2y1) * (
+        q11 * x2x * y2y +
+        q21 * xx1 * y2y +
+        q12 * x2x * yy1 +
+        q22 * xx1 * yy1
+    );
+}
+
+void scaleImage(DepthFrame *src, DepthFrame *dst, int scale)
+{
+   float q11, q12, q21, q22;
+   dst->size.width = src->size.width * scale;
+   dst->size.height = src->size.height * scale;
+   dst->depth.clear();
+   dst->amplitude.clear();
+   for (int i = 0; i < dst->size.width*dst->size.height; i++) {
+      dst->depth.push_back(0);
+      dst->amplitude.push_back(0);
+   }
+
+   for (int j=0; j < dst->size.height; j++) {
+      for (int i=0; i < dst->size.width; i++) {
+         int ii = i/scale;
+         int jj = j/scale;
+
+         q11 = src->depth[jj*src->size.width+ii]; 
+         q12 = src->depth[jj*src->size.width+(ii+1)]; 
+         q22 = src->depth[(jj+1)*src->size.width+(ii+1)]; 
+         q21 = src->depth[(jj+1)*src->size.width+ii]; 
+         dst->depth[j*dst->size.width+i] = bilinearInterpolation(q11, q12, q21, q22, 
+                                 ii*scale, (ii+1)*scale, jj*scale, (jj+1)*scale, i, j);
+      
+         q11 = src->amplitude[jj*src->size.width+ii]; 
+         q12 = src->amplitude[jj*src->size.width+(ii+1)]; 
+         q22 = src->amplitude[(jj+1)*src->size.width+(ii+1)]; 
+         q21 = src->amplitude[(jj+1)*src->size.width+ii]; 
+         dst->amplitude[j*dst->size.width+i] = ampGain*bilinearInterpolation(q11, q12, q21, q22, 
+                                 ii*scale, (ii+1)*scale, jj*scale, (jj+1)*scale, i, j);
+ 
+      }
+   }
+}
+
 
 void frameCallback(DepthCamera &dc, const Frame &frame, DepthCamera::FrameType c)
 {
@@ -67,16 +118,19 @@ int main (int argc, char* argv[])
   logger.setDefaultLogLevel(LOG_INFO);
   CameraSystem sys;
   DepthCameraPtr depthCamera;
-  ClusterMap cmap(0.7, 0.4, 2);
+  ClusterMap cmap(0.8, 0.2, 3);
   DepthFrame d, bkgnd;
-  FrameSize frame_sz;
+  int scale = SCALE;
+  FrameSize scaled, real;
 
-  frame_sz.width = XDIM;
-  frame_sz.height = YDIM;
+  real.width = XDIM;
+  real.height = YDIM;
+  scaled.width = XDIM*scale;
+  scaled.height = YDIM*scale;
 
-  d.size.width = bkgnd.size.width = XDIM;
-  d.size.height = bkgnd.size.height = YDIM;
-
+  d.size = bkgnd.size = real;
+ 
+ 
   const Vector<DevicePtr> &devices = sys.scan();
   
   if(devices.size() > 0) {
@@ -107,11 +161,10 @@ int main (int argc, char* argv[])
 
 
   iv= new pcl::visualization::ImageViewer("Depth");
-  iv->setSize(XDIM, YDIM); 
+  iv->setSize(scaled.width, scaled.height); 
 
-  depthCamera->setFrameSize(frame_sz);
+  depthCamera->setFrameSize(real);
   depthCamera->start();
-
 
   bool done = false;
   bool is_running = false;
@@ -141,31 +194,44 @@ int main (int argc, char* argv[])
 
          if (!is_running) {
             bkgnd = *frm;
-            unsigned char *rgb = FloatImageUtils::getVisualImage(bkgnd.amplitude.data(), XDIM, YDIM, 0, MAX_DIST);
-            iv->showRGBImage(rgb, XDIM, YDIM);             
+            DepthFrame scaled_d;
+            scaleImage(&bkgnd, &scaled_d, scale);
+	    unsigned char *rgb = FloatImageUtils::getVisualImage(scaled_d.amplitude.data(), 
+                                                                 scaled_d.size.width, scaled_d.size.height, 
+                                                                 0, MAX_AMPLITUDE,true);
+            iv->showRGBImage(rgb, scaled_d.size.width, scaled_d.size.height);     
+            delete rgb;        
             iv->removeLayer("rectangles");
-            delete rgb;
          }
          else {
-            d.depth.clear();
-            d.amplitude.clear();
+            d.depth.clear();          
+            d.amplitude = frm->amplitude;
             for (int i = 0; i < frm->depth.size(); i++) {
                float diff = bkgnd.depth[i] - frm->depth[i];
                d.depth.push_back((diff < 0) ? 0 : diff);
             }
+
             cmap.Scan(d);
-            unsigned char *rgb = FloatImageUtils::getVisualImage(frm->amplitude.data(), XDIM, YDIM, 0, MAX_DIST);
-            iv->showRGBImage(rgb, XDIM, YDIM); 
+
+            DepthFrame scaled_d;
+            scaleImage(&d, &scaled_d, scale);
+	    unsigned char *rgb = FloatImageUtils::getVisualImage(scaled_d.amplitude.data(), 
+                                                                 scaled_d.size.width, scaled_d.size.height, 
+                                                                 0, MAX_AMPLITUDE,true);
+            iv->showRGBImage(rgb, scaled_d.size.width, scaled_d.size.height);     
+            delete rgb;        
+
             iv->removeLayer("rectangles");
+
             for (int i = 0; i < cmap.GetClusters().size(); i++) {
                if (cmap.GetClusters()[i].GetArea() > 100) {
-                  iv->addRectangle(cmap.GetClusters()[i].GetMin().x, cmap.GetClusters()[i].GetMax().x,
-                                YDIM-cmap.GetClusters()[i].GetMin().y, YDIM-cmap.GetClusters()[i].GetMax().y,
-                                1.0, 1.0, 1.0);
+                  iv->addRectangle(cmap.GetClusters()[i].GetMin().x*scale, 
+                                   cmap.GetClusters()[i].GetMax().x*scale,
+                                   (real.height-cmap.GetClusters()[i].GetMin().y)*scale, 
+                                   (real.height-cmap.GetClusters()[i].GetMax().y)*scale,
+                                   1, 0, 0);
                }
             }
-
-            delete rgb;
          }  
 
          qFrame.pop_front();
