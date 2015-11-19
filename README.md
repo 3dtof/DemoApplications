@@ -1,57 +1,17 @@
-# CalculusDemo
-Prerelease Calculus demo
+* ApplicationDemos
 
-<h1>Prerequisits:</h1>
+This repository holds various demo applications, organised according to chipset families.
 
-* Point Cloud Library
+** Calculus (OPT8320) 
+   
+    tv_auto_on_off - demo that demonstrate turning TV on/off based on presence of an audience
+                     in front of the TV.
 
-       ```
-	$ sudo add-apt-repository ppa:v-launchpad-jochen-sprickerhof-de/pcl
-	$ sudo apt-get update
-	$ sudo apt-get install libpcl-all
-       ```
+** TinTin (OPT8241/OPT9221)
+ 
+    people_counter - demo running on Ubuntu 14.04 (Pandaboard and PC) using Voxel SDK that show
+                     people tracking/counting
 
-* USB stack
+    glass_gesture - demo running on Ubuntu 14.04 (Pandaboard and PC) that use OPT8241 to see
+                    hand movement and use it for mouse control.
 
-       ```
-	$ sudo apt-get install libusb-1.0-0-dev libudev-dev linux-libc-dev
-       ```
-
-* Build tools:
-
-       ```
-	$ sudo apt-get install python cmake git g++ swig3.0
-       ```
-
-* Doxgen and Graphviz
-
-       ```
-	$ sudo apt-get install doxygen graphviz
-       ```
-
-* Voxel SDK (with demo code; login required)
-
-       ```
-  	$ git clone https://github.com/3dtof/CalculusDemo.git
-
-       ```
-
-<h1>Build:</h1>
-To build the code, first `cd` into the right directory:
-
-       ```
-  	$ cd 3dtof/CalculusDemo
-  	$ source setup.sh
-  	$ cd voxel-sdk
-       ```
-  
-There are four subdirectories, `libvoxel`, `libti3dtof`, `libvoxelpcl`, `libvoxel-app`; each require seperate builds. To build them, simple repeat the below steps for each, in the order I just listed, except `libvoxel-app`; for that, replace `sudo make install` with `make`:
-
-       ```
-  	$ cd <directory>; mkdir build; cd build
-  	$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr ..
-  	$ sudo make install
-       ```
-
-The Calculus demo code are under `libvoxel-app/build/App`.  Most of them require you to run with `sudo`.  The RobotDemo is the vacuum cleaner demo, the TVDemo require USB-UIRT (http://www.usbuirt.com).
-  
