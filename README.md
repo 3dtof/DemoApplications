@@ -1,13 +1,13 @@
-* ApplicationDemos
+# ApplicationDemos
 
 This repository holds various demo applications, organised according to chipset families.
 
-** Calculus (OPT8320) 
+<h1>Calculus (OPT8320)</h1> 
    
     tv_auto_on_off - demo that demonstrate turning TV on/off based on presence of an audience
                      in front of the TV.
 
-** TinTin (OPT8241/OPT9221)
+<h1>TinTin (OPT8241/OPT9221)</h1>
  
     people_counter - demo running on Ubuntu 14.04 (Pandaboard and PC) using Voxel SDK that show
                      people tracking/counting
