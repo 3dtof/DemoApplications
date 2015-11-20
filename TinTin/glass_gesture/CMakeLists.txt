@@ -13,9 +13,9 @@ add_definitions(-msse2 -pthread -std=c++11 -fPIC -ffast-math)
 set(VOXEL_INCLUDE_DIRS . /usr/include/voxel /usr/include/voxel/pcl /usr/include/voxel/ti3dtof /usr/include/voxel/Filter )
 set(VOXEL_LIBRARIES /usr/lib/libti3dtof.so /usr/lib/libvoxel.so /usr/lib/libvoxelpcl.so)
 
-add_executable(glass_gesture glass_gesture.cpp Cluster.cpp)
+add_executable(glass_gesture glass_gesture.cpp Cluster.cpp FakeMouse.cpp)
 target_include_directories(glass_gesture PUBLIC ${VOXEL_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${EIGEN_INCLUDE_DIRS})
-target_link_libraries(glass_gesture voxelpcl ${OpenCV_LIBS} ${VOXEL_LIBRARIES} ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_VISUALIZATION_LIBRARIES})
+target_link_libraries(glass_gesture voxelpcl X11 ${OpenCV_LIBS} ${VOXEL_LIBRARIES} ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_VISUALIZATION_LIBRARIES})
 
 IF(LINUX)
   set(CPACK_COMPONENTS_ALL apps)
