@@ -73,7 +73,7 @@ void frameCallback(DepthCamera &dc, const Frame &frame, DepthCamera::FrameType c
 
 int main (int argc, char* argv[])
 {
-  //logger.setDefaultLogLevel(LOG_INFO);
+  logger.setDefaultLogLevel(LOG_INFO);
   CameraSystem sys;
   DepthCameraPtr depthCamera;
   FrameSize real;
@@ -112,19 +112,19 @@ int main (int argc, char* argv[])
   }
   else
   {
-    cerr << "RobotDemo: Could not find a compatible device." << endl;
+    cerr << "Error: Could not find a compatible device." << endl;
     return -1;
   }
   
   if(!depthCamera)
   {
-    cerr << "RobotDemo: Could not open a depth camera." << endl;
+    cerr << "Error: Could not open a depth camera." << endl;
     return -1;
   }
  
   if (!depthCamera->isInitialized())   
   {
-     cerr << "Depth camera not initialized " << endl;
+     cerr << "Error: Depth camera not initialized " << endl;
      return -1;
   }
  
@@ -133,6 +133,7 @@ int main (int argc, char* argv[])
  
   depthCamera->registerCallback(DepthCamera::FRAME_DEPTH_FRAME, frameCallback);
   depthCamera->setFrameSize(real);  
+  cout << "set intg = " << depthCamera->set("intg_duty_cycle", 1U) << endl;
   depthCamera->start();
 
   bool done = false;
@@ -160,8 +161,8 @@ int main (int argc, char* argv[])
          hand.depth.clear();          
          hand.amplitude.clear();
          for (int i = 0; i < frm->depth.size(); i++) {
-            hand.depth.push_back((frm->depth[i] < proximity) ? frm->depth[i] : 0.0);
-            hand.amplitude.push_back((frm->depth[i] < proximity) ? ampGain : 0.0);
+            hand.depth.push_back((frm->depth[i] < proximity && frm->amplitude[i] > 0.01) ? frm->depth[i] : 0.0);
+            hand.amplitude.push_back((frm->depth[i] < proximity && frm->amplitude[i] > 0.01) ? ampGain : 0.0);
          }      
 
          // Create viewable images
@@ -192,18 +193,35 @@ int main (int argc, char* argv[])
             }
          }
 
-         // Find the finger tip, which should be the most up-left point
-         // in the cluster and draw the bounding box and circle around the tip
+         // Find the finger tip
          //
          POINT tip = POINT(amp_img.cols,amp_img.rows,0);
+	 float dist2, max_dist2 = 0.0;
+
          if (cmap.getClusters().size() > 0) {
+
+            // Find tip which point in cluster farthest from bottom-right corner
+            //
 	    for (int i=0; i < cmap.getClusters()[max_cluster_id].getPoints().size(); i++) {
 	       POINT p = cmap.getClusters()[max_cluster_id].getPoints()[i];
                filter_img.at<float>(p.y, p.x) = p.z;
-	       if ((p.y <= cmap.getClusters()[max_cluster_id].getMin().y) && (p.x <= tip.x)) {
-                  tip = p;
+	       if ((p.y <= cmap.getClusters()[max_cluster_id].getMin().y) ||
+                   (p.x <= cmap.getClusters()[max_cluster_id].getMin().x)) {
+                  dist2 = (filter_img.cols-p.x)*(filter_img.cols-p.x)
+                        + (filter_img.rows-p.y)*(filter_img.rows-p.y);
+                  if (dist2 > max_dist2) {
+                     max_dist2 = dist2;
+                     tip = p;
+                  }
                }	          
 	    }
+
+            POINT p = cmap.getClusters()[max_cluster_id].getCentroid();
+            cv::Point palm = cv::Point(p.x, p.y);
+            cv::Point finger_tip = cv::Point(tip.x, tip.y);
+
+            float click_dist = depth_img.at<float>(finger_tip) - depth_img.at<float>(palm);
+            
 
             // Draw bounding box and tip
             if (max_area > area) {
@@ -212,10 +230,23 @@ int main (int argc, char* argv[])
          	cv::Point Pmin = cv::Point(cmap.getClusters()[max_cluster_id].getMin().x, 
                                     cmap.getClusters()[max_cluster_id].getMin().y);
          	rectangle(orig_img, Pmin, Pmax, Scalar(255));
-                cv::Point center = cv::Point(tip.x, tip.y);
-                circle(orig_img, center, 10, Scalar(255));
+                circle(orig_img, finger_tip, 3, Scalar(255));
+                circle(orig_img, palm, 3, Scalar(255));
 	    }
+
+            cout << "tip = (" << tip.x << "," << tip.y << ") "
+                 << "tip depth = " << frm->depth[frm->size.width*tip.y+tip.x] 
+                 << "click_dist2 = " << max_dist2 << endl;
+         
+            if (max_dist2 < 2000) 
+                cout << " ======== mouse down ========" << endl;
          }
+
+         int mid = (frm->size.width*frm->size.height + frm->size.width)/2;
+         cout << "center amp =" << frm->amplitude[mid] << " "
+              << "center depth =" << frm->depth[mid] 
+              << "depth*amp = " << frm->depth[mid]*frm->amplitude[mid] << endl;
+
          imshow("Original", ampGain*orig_img);
          imshow("AmpThresh", amp_img); 
          imshow("DepthThresh", depth_img);     
@@ -223,9 +254,6 @@ int main (int argc, char* argv[])
 
          delete depth;  
          delete orig;      
-
-         cout << "center amp =" << frm->amplitude[frm->size.width*(frm->size.height)/2]
-              << " center depth =" << frm->depth[frm->size.width*(frm->size.height)/2]<< endl;
 
          qFrame.pop_front();
       }
