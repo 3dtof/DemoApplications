@@ -72,6 +72,13 @@ POINT Cluster::getCentroid()
 
 //===================================================
 
+ClusterMap::ClusterMap()
+{
+   _density = 0.7; 
+   _thresh = 0.1;
+   _kernSz = 3;
+}
+
 ClusterMap::ClusterMap(float den, float thr, int sz)
 {
    _density = den; 
@@ -79,6 +86,12 @@ ClusterMap::ClusterMap(float den, float thr, int sz)
    _kernSz = sz;
 }
 
+void ClusterMap::setAttr(float den, float thr, int sz)
+{
+   _density = den; 
+   _thresh = thr;
+   _kernSz = sz;
+}
 
 bool ClusterMap::qualify(Mat d, int x, int y)
 {

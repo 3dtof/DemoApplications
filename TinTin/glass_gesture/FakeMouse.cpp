@@ -6,7 +6,17 @@
 #define __FAKEMOUSE_CPP__
 #include "FakeMouse.h"
 
+FakeMouse::FakeMouse()
+{
+   setDisplay(XOpenDisplay(0));
+}
+
 FakeMouse::FakeMouse(Display *disp) 
+{
+   setDisplay(disp);
+}
+
+void FakeMouse::setDisplay(Display *disp)
 {
    display = disp;
    root = DefaultRootWindow(display);
@@ -15,11 +25,12 @@ FakeMouse::FakeMouse(Display *disp)
    height = screen->height;
 }
 
+
 FakeMouse::~FakeMouse()
 {
 }
 
-bool FakeMouse::ButtonEvent(int button, int event_type)
+bool FakeMouse::buttonEvent(int button, int event_type)
 {
    XEvent event;
 
@@ -51,47 +62,47 @@ bool FakeMouse::ButtonEvent(int button, int event_type)
    return true;
 }
 
-void FakeMouse::ButtonDown(int button)
+void FakeMouse::buttonDown(int button)
 {
-   ButtonEvent(button, ButtonPress);
+   buttonEvent(button, ButtonPress);
 }
 
-void FakeMouse::ButtonUp(int button)
+void FakeMouse::buttonUp(int button)
 {
-   ButtonEvent(button, ButtonRelease);
+   buttonEvent(button, ButtonRelease);
 }
 
-void FakeMouse::Click(int button) 
+void FakeMouse::click(int button) 
 {
-   ButtonDown(button);
+   buttonDown(button);
    usleep(100000);
-   ButtonUp(button);
+   buttonUp(button);
 }
 
 
-void FakeMouse::DoubleClick(int button)
+void FakeMouse::doubleClick(int button)
 {
-   Click(button);
+   click(button);
    usleep(100000);
-   Click(button);
+   click(button);
 }
 
-void FakeMouse::MoveTo(int x, int y)
+void FakeMouse::moveTo(int x, int y)
 {
    XWarpPointer(display, None, root, 0, 0, 0, 0, x, y);
    XFlush(display);
 }
 
-void FakeMouse::MoveBy(int dx, int dy)
+void FakeMouse::moveBy(int dx, int dy)
 {
    int x, y;
 
-   GetPos(x, y);
+   getPos(x, y);
    XWarpPointer(display, None, root, 0, 0, 0, 0, x+dx, y+dy);
    XFlush(display);
 }
 
-void FakeMouse::GetPos(int &x, int &y)
+void FakeMouse::getPos(int &x, int &y)
 {
    XEvent event;
    XQueryPointer(display, RootWindow(display, DefaultScreen(display)), 
@@ -103,7 +114,14 @@ void FakeMouse::GetPos(int &x, int &y)
    y = event.xbutton.y;
 }
 
-#ifdef UNIT_TEST
+void FakeMouse::getDim(int &x, int &y)
+{
+   x = width;
+   y = height;
+}
+
+
+#ifdef __UNIT_TEST__
 int main(int argc,char * argv[]) 
 {
    int i=0;
@@ -113,18 +131,19 @@ int main(int argc,char * argv[])
    Display *display = XOpenDisplay(0);
    FakeMouse mouse(display);
    Screen *screen = DefaultScreenOfDisplay(display);
-   mouse.MoveTo(x, y);
-   mouse.Click(Button1);
+   mouse.moveTo(x, y);
+   mouse.click(Button1);
 
-   mouse.MoveTo(0,0);
+   mouse.moveTo(0,0);
    for (int i=0; i < 200; i++) {
-      mouse.MoveBy(screen->width/200, screen->height/200);
+      mouse.moveBy(screen->width/200, screen->height/200);
       usleep(10000);
    }
 
    XCloseDisplay(display);
    return 0;
 }
+#undef __UNIT_TEST__
 #endif // UNIT_TEST
 
 #undef __FAKEMOUSE_CPP__

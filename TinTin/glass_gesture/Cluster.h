@@ -58,7 +58,9 @@ private:
 class ClusterMap
 {
 public:
+    ClusterMap();
     ClusterMap(float den, float thr, int sz);
+    void setAttr(float den, float thr, int sz);
     void scan(Mat &m);
     inline vector<Cluster> &getClusters() {return _clusters;}
     inline Mat &getLabelMap() {return _labelMap;}

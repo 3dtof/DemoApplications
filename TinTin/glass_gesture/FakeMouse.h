@@ -15,18 +15,21 @@
 
 class FakeMouse {
 public:
+   FakeMouse();
    FakeMouse(Display *disp);
    ~FakeMouse();
-   void ButtonDown(int button); 
-   void ButtonUp(int button);
-   void Click(int button);
-   void DoubleClick(int button);
-   void MoveTo(int x, int y);
-   void MoveBy(int dx, int dy);
-   void GetPos(int &x, int &y);
+   void setDisplay(Display *disp);
+   void buttonDown(int button); 
+   void buttonUp(int button);
+   void click(int button);
+   void doubleClick(int button);
+   void moveTo(int x, int y);
+   void moveBy(int dx, int dy);
+   void getPos(int &x, int &y);
+   void getDim(int &xmax, int &ymax);
 
 private:
-   bool ButtonEvent(int btn, int e);
+   bool buttonEvent(int btn, int e);
    Display *display;
    Window root;
    Screen *screen;
