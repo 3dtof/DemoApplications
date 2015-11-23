@@ -83,7 +83,7 @@ void *AirMouse::eventLoop(void *p)
 
    // Connect to TOF camera
    //
-   const Vector<DevicePtr> &devices = m->_sys.scan();
+   const vector<DevicePtr> &devices = m->_sys.scan();
    if (devices.size() > 0) {
      m->_depthCamera = m->_sys.connect(devices[0]);
      if (!m->_depthCamera) 
