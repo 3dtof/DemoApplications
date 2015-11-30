@@ -12,14 +12,23 @@
 static deque < DepthFrame > qFrame; 
 static void frameCallback(DepthCamera &dc, const Frame &frame, DepthCamera::FrameType c);
 
+void frameCallback(DepthCamera &dc, const Frame &frame, DepthCamera::FrameType c)
+{
+   if (qFrame.size() < 2) {
+      const DepthFrame *f = dynamic_cast<const DepthFrame *>(&frame);
+      qFrame.push_back(*f);
+   }
+}
 
 AirMouse::AirMouse()
 {
    _debug = false;
    _real.width = XDIM;
    _real.height = YDIM;
+   _hand.size = _real;
    _ampGain = 10.0;
-   _proximity = 1.5;
+   _depthClip = 1.5;
+   _ampClip = 0.01;
    _area = 0;
    _illum_power = 48U;
    _intg = 1U;
@@ -57,234 +66,279 @@ void AirMouse::stop()
 }
 
 
-void frameCallback(DepthCamera &dc, const Frame &frame, DepthCamera::FrameType c)
+Mat &AirMouse::clipBackground()
 {
-   if (qFrame.size() < 2) {
-      const DepthFrame *f = dynamic_cast<const DepthFrame *>(&frame);
-      qFrame.push_back(*f);
-   }
+   _hand.depth.clear();          
+   _hand.amplitude.clear();
+   for (int i = 0; i < _frm->depth.size(); i++) {
+      _hand.depth.push_back((_frm->depth[i] < _depthClip && _frm->amplitude[i] > _ampClip) ? _frm->depth[i] : 0.0);
+      _hand.amplitude.push_back((_frm->depth[i] < _depthClip && _frm->amplitude[i] > _ampClip) ? _ampGain : 0.0);
+   }  
+   _ampImg = Mat(_hand.size.height, _hand.size.width, CV_32FC1, _hand.amplitude.data());  
+
+   return _ampImg;
 }
-  
-void *AirMouse::eventLoop(void *p)
+
+
+bool AirMouse::findKeyPoints()
 {
-   int rc = 0;
-   AirMouse *m = (AirMouse *)p;
-   DepthFrame *frm, hand;
-   POINT palm;
-   cv::Point palm_center, tip_center;
-   float click_dist = 0;
+   int id;
+   float dist2, max_dist2 = 0.0;
 
-   hand.size = m->_real;
+   if (_cmap.largestCluster(_max_id)) {
+      Cluster *c = &_cmap.getClusters()[_max_id];
 
-   // If debug enable error logging and display
-   //
-   if (m->debugging()) 
-      logger.setDefaultLogLevel(LOG_INFO);   hand.size = m->_real;
-
-   // Connect to TOF camera
-   //
-   const vector<DevicePtr> &devices = m->_sys.scan();
-   if (devices.size() > 0) {
-     m->_depthCamera = m->_sys.connect(devices[0]);
-     if (!m->_depthCamera) 
-        goto err_exit2; 
-     if (!m->_depthCamera->isInitialized()) 
-        goto err_exit2;
-   }
-   else 
-      goto err_exit2;
-   
-   m->_depthCamera->registerCallback(DepthCamera::FRAME_DEPTH_FRAME, frameCallback);
-   m->_depthCamera->setFrameSize(m->_real);  
-   cout << "power = " << m->_depthCamera->set("illum_power_percentage", m->_illum_power) << endl;
-   cout << "duty = " << m->_depthCamera->set("intg_duty_cycle", m->_intg) << endl;
-   m->_depthCamera->start();
-
- 
-   // Thread loop
-   //
-   m->_isRunning = true;
-   while (m->_isRunning) {
-
-      if (!qFrame.empty()) {
-
-         frm = &qFrame.front(); 
-
-         // Clip background (objects > proximity) 
-         //
-         hand.depth.clear();          
-         hand.amplitude.clear();
-         for (int i = 0; i < frm->depth.size(); i++) {
-            hand.depth.push_back((frm->depth[i] < m->_proximity && frm->amplitude[i] > 0.01) ? frm->depth[i] : 0.0);
-            hand.amplitude.push_back((frm->depth[i] < m->_proximity && frm->amplitude[i] > 0.01) ? m->_ampGain : 0.0);
-         }    
-
-         // Find the largest cluster, which should be the hand
-         //
-         Mat amp_img = Mat(hand.size.height, hand.size.width, CV_32FC1, hand.amplitude.data());
-         m->_cmap.scan(amp_img);
-         int max_cluster_id = 0;
-         float max_area = 0;
-         for (int i=0; i < m->_cmap.getClusters().size(); i++) {
-            if (m->_cmap.getClusters()[i].getArea() > max_area) {
-               max_area = m->_cmap.getClusters()[i].getArea();
-               max_cluster_id = i;
+      // Find tip
+      for (int i=0; i < c->getPoints().size(); i++) {
+         POINT p = c->getPoints()[i];
+         if (_lefthanded) {
+	    if ((p.y <= c->getMin().y) || (p.x >= c->getMax().x)) {
+               dist2 = (p.x)*(p.x) + (_real.height-p.y)*(_real.height-p.y);
+               if (dist2 > max_dist2) {
+                  max_dist2 = dist2;
+                  _tip = cv::Point((int)floor(p.x), (int)floor(p.y));
+               }
             }
          }
-
-         // Find the finger tip which is the cluster point farthest from 
-         // bottom-right corner (if rigthhanded), or bottom-left corner 
-         // (if lefthanded)
-         //
-         POINT tip = POINT(amp_img.cols,amp_img.rows,0);
-	 float dist2, max_dist2 = 0.0;
-
-         if (m->_cmap.getClusters().size() > 0) {
-            
-            for (int i=0; i < m->_cmap.getClusters()[max_cluster_id].getPoints().size(); i++) {
-	       POINT p = m->_cmap.getClusters()[max_cluster_id].getPoints()[i];
-              
-               if (m->_lefthanded) {
-	          if ((p.y <= m->_cmap.getClusters()[max_cluster_id].getMin().y) ||
-                             (p.x >= m->_cmap.getClusters()[max_cluster_id].getMax().x)) {
-                     dist2 = (p.x)*(p.x)
-                           + (amp_img.rows-p.y)*(amp_img.rows-p.y);
-                     if (dist2 > max_dist2) {
-                        max_dist2 = dist2;
-                        tip = p;
-                     }
-                  }
+         else {
+	    if ((p.y <= c->getMin().y) || (p.x <= c->getMin().x)) {
+               dist2 = (_real.width-p.x)*(_real.width-p.x) + (_real.height-p.y)*(_real.height-p.y);
+               if (dist2 > max_dist2) {
+                  max_dist2 = dist2;
+                  _tip = cv::Point((int)floor(p.x), (int)floor(p.y));
                }
-               else {
-	          if ((p.y <= m->_cmap.getClusters()[max_cluster_id].getMin().y) ||
-                             (p.x <= m->_cmap.getClusters()[max_cluster_id].getMin().x)) {
-                     dist2 = (amp_img.cols-p.x)*(amp_img.cols-p.x)
-                           + (amp_img.rows-p.y)*(amp_img.rows-p.y);
-                     if (dist2 > max_dist2) {
-                        max_dist2 = dist2;
-                        tip = p;
-                     }
-                  }
-               }	          
-  	    }
- 
-            palm = m->_cmap.getClusters()[max_cluster_id].getCentroid();
-            palm_center = cv::Point((int)floor(palm.x), (int)floor(palm.y));
-            tip_center = cv::Point((int)floor(tip.x), (int)floor(tip.y));
-            int s_width, s_height;
-            m->getDim(s_width, s_height);
-            int mouse_x = (tip_center.x*s_width)/amp_img.cols;
-            int mouse_y = (tip_center.y*s_height)/amp_img.rows;
+            }
+         }	          
+      }
 
-            if (m->debugging())
-               cout << "Mouse at (" << mouse_x << "," << mouse_y << ")" << endl;
-            else
-               m->moveTo(mouse_x, mouse_y);
+      // Find palm
+      POINT centroid = c->getCentroid();
+      _palm = cv::Point((int)floor(centroid.x), (int)floor(centroid.y));
+
+      return true;
+   }
+   return false;
+}
+
+
+cv::Point AirMouse::getPos()
+{
+   cv::Point m;
+   int s_width, s_height;
+   getDim(s_width, s_height);
+   m.x = (_tip.x*s_width)/_real.width;
+   m.y = (_tip.y*s_height)/_real.height;
+   return m;
+}
+
+
+float AirMouse::clickDist()
+{
+   return _frm->depth[_frm->size.width*_tip.y+_tip.x]; 
+}
+
+
+int AirMouse::getButton()
+{
+   float click_dist = clickDist();
+   if (debugging()) 
+      cout << "click_dist = " << click_dist << " LB = " 
+           << _buttonHyst.getLowerB() << "  UB =" << _buttonHyst.getUpperB() << endl; 
+   bool buttonDown = _buttonHyst.update(click_dist);
+   if (buttonDown) 
+      return ButtonPress;
+   else
+      return ButtonRelease;
+}
+
+
+void AirMouse::action(cv::Point &mouse, int buttonState)
+{
+    if (debugging())
+       cout << "Mouse at (" << mouse.x << "," << mouse.y << ")" << endl;
+    else
+       moveTo(mouse.x, mouse.y);
          
-            click_dist = hand.depth[hand.size.width*tip.y+tip.x] - hand.depth[hand.size.width*palm.y+palm.x];
+    if (buttonState == ButtonPress) {
+       if (debugging())
+          cout << "Button Down" << endl;
+       else
+          buttonDown(Button1);
+    }
+    else if (buttonState == ButtonRelease) {
+       if (debugging())
+          cout << "Button Up" << endl;
+       else
+          buttonUp(Button1);
+    }
+}
 
-            if (m->debugging())
-               cout << "Click dist = " << click_dist << endl;
+void AirMouse::displayDebugInfo()
+{
+   // Create image windows
+   namedWindow( "DepthThresh", WINDOW_NORMAL );
+   namedWindow( "Original", WINDOW_NORMAL );
+   namedWindow( "Filtered", WINDOW_NORMAL );
+   namedWindow( "AmpThresh", WINDOW_NORMAL );
 
-            if (click_dist > 1) {
-               if (m->debugging())
-                  cout << "Button Down" << endl;
-               else
-                  m->buttonDown(Button1);
+   // Create depth image
+   unsigned char *depth = FloatImageUtils::getVisualImage(_hand.depth.data(), 
+                                                          _hand.size.width, _hand.size.height, 
+                                                          0, MAX_AMPLITUDE,false);  
+   _depthImg = Mat(_hand.size.height, _hand.size.width, CV_8UC3, depth);
+
+
+   // Create orig image
+   unsigned char *orig = FloatImageUtils::getVisualImage(_frm->amplitude.data(), 
+                                                         _frm->size.width, _frm->size.height, 
+                                                         0, MAX_AMPLITUDE,true);  
+   _origImg  = Mat(_frm->size.height, _frm->size.width, CV_8UC3, orig);
+
+
+   // Create filter_img which shows only the largest cluster
+   _filterImg = Mat(_hand.size.height, _hand.size.width, CV_32FC1, Scalar(0));
+   if (_cmap.getClusters().size() > 0) {
+
+      Cluster *c = &_cmap.getClusters()[_max_id];
+      
+      // Create image of just the largest cluster
+      for (int i=0; i < c->getPoints().size(); i++) {
+         POINT p = c->getPoints()[i];
+         _filterImg.at<float>(p.y, p.x) = p.z;
+      }
+
+      // Overlay bounding box and tip point in orig_img
+      cv::Point Pmax = cv::Point(c->getMax().x, c->getMax().y);
+      cv::Point Pmin = cv::Point(c->getMin().x, c->getMin().y);
+      rectangle(_origImg, Pmin, Pmax, Scalar(255));
+      circle(_origImg, _tip, 3, Scalar(255));
+      circle(_origImg, _palm, 3, Scalar(255));
+
+      // Output debug data
+      cout << "tip=(" << _tip.x << "," << _tip.y << ") "
+           << "tip depth=" << _frm->depth[_frm->size.width*_tip.y+_tip.x] << " "
+           << "palm=(" << _palm.x << "," << _palm.y << ") "
+           << "palm depth=" << _frm->depth[_frm->size.width*_palm.y+_palm.x] << " "
+           << "click_dist=" << clickDist() << endl;
+   }
+
+   // Output depth and amplitude at image center
+   int mid = (_frm->size.width*_frm->size.height + _frm->size.width)/2;
+   cout << "center amp=" << _frm->amplitude[mid] << " "
+        << "center depth=" << _frm->depth[mid] << endl;
+       
+   // Show the images
+   imshow("Filtered", _filterImg);
+   imshow("Original", _ampGain*_origImg);
+   imshow("DepthThresh", _depthImg);
+   imshow("AmpThresh", _ampImg);
+
+   delete depth;  
+   delete orig;   
+}
+
+
+bool AirMouse::connect()
+{
+   const vector<DevicePtr> &devices = _sys.scan();
+   if (devices.size() > 0) {
+     _depthCamera = _sys.connect(devices[0]);
+     if (!_depthCamera) 
+        return false; 
+     if (!_depthCamera->isInitialized()) 
+        return false;
+   }
+   else 
+      return false;
+   
+   _depthCamera->registerCallback(DepthCamera::FRAME_DEPTH_FRAME, frameCallback);
+   _depthCamera->setFrameSize(_real);  
+   _depthCamera->set("illum_power_percentage", _illum_power);
+   _depthCamera->set("intg_duty_cycle", _intg);
+   _depthCamera->start();
+
+   return true;
+}
+
+
+void AirMouse::disconnect()
+{
+   _depthCamera->stop();
+}
+
+
+void *AirMouse::eventLoop(void *p)
+{
+   AirMouse *m = (AirMouse *)p;
+   int sample_count = REFERENCE_SAMPLES;
+   int wait_count = WAIT_COUNT;
+   float sum = 0, sum2 = 0;
+
+   if (m->debugging()) 
+      logger.setDefaultLogLevel(LOG_INFO);   
+
+   if (!m->connect())
+      goto err_exit2;
+
+   m->_isRunning = true;
+   m->_refSet = false;
+   while (m->_isRunning) {
+      if (!qFrame.empty()) {
+         m->_frm = &qFrame.front(); 
+         m->clipBackground();
+         m->_cmap.scan(m->_ampImg);
+         if (m->findKeyPoints()) {
+            if (m->_refSet) {
+               cv::Point mouse = m->getPos();
+               int button = m->getButton();
+               m->action(mouse, button);
             }
             else {
-               if (m->debugging())
-                  cout << "Button Up" << endl;
-               else
-                  m->buttonUp(Button1);
-            }
-
-         } // if (cmap.getClusters().size() > 0)
-         
- 
-         // If in debug mode, display images & debug data
-         //
-         if (m->debugging()) {
-
-            namedWindow( "DepthThresh", WINDOW_NORMAL );
-            namedWindow( "Original", WINDOW_NORMAL );
-            namedWindow( "Filtered", WINDOW_NORMAL );
-            namedWindow( "AmpThresh", WINDOW_NORMAL );
-
-            // Create depth image
-            //
-            unsigned char *depth = FloatImageUtils::getVisualImage(hand.depth.data(), 
-                                                                 hand.size.width, hand.size.height, 
-                                                                 0, MAX_AMPLITUDE,false);  
-            Mat depth_img = Mat(hand.size.height, hand.size.width, CV_8UC3, depth);
-
-
-            // Create orig image
-            //
-            unsigned char *orig = FloatImageUtils::getVisualImage(frm->amplitude.data(), 
-                                                                 frm->size.width, frm->size.height, 
-                                                                 0, MAX_AMPLITUDE,true);  
-            Mat orig_img  = Mat(frm->size.height, frm->size.width, CV_8UC3, orig);
-
-
-            // Create filter_img which shows only the largest cluster
-            //
-            Mat filter_img = Mat(hand.size.height, hand.size.width, CV_32FC1, Scalar(0));
-
-            if (m->_cmap.getClusters().size() > 0) {
-               for (int i=0; i < m->_cmap.getClusters()[max_cluster_id].getPoints().size(); i++) {
-	          POINT p = m->_cmap.getClusters()[max_cluster_id].getPoints()[i];
-                  filter_img.at<float>(p.y, p.x) = p.z;
+               if (wait_count == 0) {
+                  if (sample_count-- == 0) { 
+                     m->_referenceDepth = sum/REFERENCE_SAMPLES;
+                     float sigma = sqrt(sum2/REFERENCE_SAMPLES - m->_referenceDepth*m->_referenceDepth);
+                     float ub = m->_referenceDepth+4*sigma;
+                     float lb = m->_referenceDepth;
+                     m->_buttonHyst = Hyster(ub, lb, 1);
+                     m->_refSet = true;
+                     sum = sum2 = 0;
+                     if (m->debugging()) {
+                        cout << "Calibrated ===============================================" << endl;
+                        cout << "Reference = " << m->_referenceDepth << "   Sigma = " << sigma << endl;
+                        cout << "LB = " << lb << "  UB = " << ub << endl;
+                     }
+                  } 
+                  else {
+                     float x = m->_frm->depth[m->_frm->size.width*m->_tip.y+m->_tip.x];
+                     sum += x;
+                     sum2 += (x*x);
+                  }
                }
-
-               // Overlay bounding box and tip point in orig_img
-               if (max_area > m->_area) {
-          	   cv::Point Pmax = cv::Point(m->_cmap.getClusters()[max_cluster_id].getMax().x, 
-                                    m->_cmap.getClusters()[max_cluster_id].getMax().y);
-         	   cv::Point Pmin = cv::Point(m->_cmap.getClusters()[max_cluster_id].getMin().x, 
-                                    m->_cmap.getClusters()[max_cluster_id].getMin().y);
-         	   rectangle(orig_img, Pmin, Pmax, Scalar(255));
-                   circle(orig_img, tip_center, 3, Scalar(255));
-                   circle(orig_img, palm_center, 3, Scalar(255));
-	       }
-
-               // Output debug numbers
-               //
-               cout << "tip=(" << tip_center.x << "," << tip_center.y << ") "
-                    << "tip depth=" << frm->depth[frm->size.width*tip.y+tip.x] << " "
-                    << "palm=(" << palm_center.x << "," << palm_center.y << ") "
-                    << "palm depth=" << frm->depth[frm->size.width*palm.y+palm.x] << " "
-                    << "click_dist=" << click_dist << endl;
+               else
+                  wait_count--;
             }
+         }
+         else {
+            m->_refSet = false;
+            sample_count = REFERENCE_SAMPLES;
+            sum = sum2 = 0;
+            wait_count = WAIT_COUNT;
+         }
 
-            int mid = (frm->size.width*frm->size.height + frm->size.width)/2;
-            cout << "center amp=" << frm->amplitude[mid] << " "
-                 << "center depth=" << frm->depth[mid] << endl;
-       
-            // Show the images
-            //
-            imshow("Filtered", filter_img);
-            imshow("Original", m->_ampGain*orig_img);
-            imshow("DepthThresh", depth_img);
-            imshow("AmpThresh", amp_img);
-
-            delete depth;  
-            delete orig;   
-         }  // if (debugging())
-
+#if 1
+         if (m->debugging())  
+            m->displayDebugInfo();
+#endif
          qFrame.pop_front();
-      } // frame not empty
-  
+      } 
       waitKey(m->_loopDelay);
-      
-   } // while (m->_isRunning)
+   } 
 
 err_exit1:
-   cout << "Exit 1 ... " << endl;
-   m->_depthCamera->stop();
+   m->disconnect();
 
 err_exit2:
-   cout << "Exit 2..." << endl;
    pthread_exit(NULL);
 }
 

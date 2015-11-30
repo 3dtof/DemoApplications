@@ -64,6 +64,7 @@ public:
     void scan(Mat &m);
     inline vector<Cluster> &getClusters() {return _clusters;}
     inline Mat &getLabelMap() {return _labelMap;}
+    bool largestCluster(int &max_id);
 
 private:
     bool qualify(Mat d, int x, int y);

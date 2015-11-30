@@ -32,14 +32,31 @@ int main(int argc, char *argv[])
          cout << "debug." << endl;
          am.setDebug(true);
       }
+      else if (string(argv[1]) == string("l")) {
+         cout << "lefthanded." << endl;
+         am.setLeftHanded(true);
+      }
    }
-
+   else if (argc == 3) {
+      if (string(argv[1]) == string("d")) {
+         cout << "debug." << endl;
+         am.setDebug(true);
+      }
+      if (string(argv[2]) == string("l")) {
+         cout << "lefthanded." << endl;
+         am.setLeftHanded(true);
+      }
+   }
+   
    am.start();
 
    bool done = false;
    while (!done) {
       int key = getkey();
-      if (key == 'q') done = true;
+      if (key == 'q') {
+         done = true;
+      }
       usleep(100000);
    }
+   am.stop();
 }

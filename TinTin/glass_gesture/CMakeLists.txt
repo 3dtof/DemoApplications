@@ -8,12 +8,12 @@ FIND_PACKAGE(Qt5Widgets REQUIRED)
 ENDIF()
 
 add_definitions(${PCL_DEFINITIONS})
-add_definitions(-O2 -msse2 -pthread -std=c++11 -fPIC -ffast-math)
+add_definitions(-msse2 -pthread -std=c++11 -fPIC -ffast-math)
 
 set(VOXEL_INCLUDE_DIRS . /usr/include/voxel /usr/include/voxel/pcl /usr/include/voxel/ti3dtof /usr/include/voxel/Filter )
 set(VOXEL_LIBRARIES /usr/lib/libti3dtof.so /usr/lib/libvoxel.so /usr/lib/libvoxelpcl.so)
 
-add_executable(main main.cpp AirMouse.cpp Cluster.cpp FakeMouse.cpp)
+add_executable(main main.cpp AirMouse.cpp Hyster.cpp Cluster.cpp FakeMouse.cpp)
 target_include_directories(main PUBLIC ${VOXEL_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${EIGEN_INCLUDE_DIRS})
 target_link_libraries(main voxelpcl X11 ${OpenCV_LIBS} ${VOXEL_LIBRARIES} ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_VISUALIZATION_LIBRARIES})
 

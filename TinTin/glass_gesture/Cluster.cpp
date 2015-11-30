@@ -115,6 +115,24 @@ bool ClusterMap::qualify(Mat d, int x, int y)
    return false;
 }
 
+bool ClusterMap::largestCluster(int &max_id) 
+{
+    int id = 0;
+    float max_area = 0;
+
+    int sz = _clusters.size();
+    if (sz > 0) {
+       for (int i=0; i < sz; i++) {
+          if (_clusters[i].getArea() > max_area) {
+             max_area = _clusters[i].getArea();
+             id = i;
+          }
+       }
+       max_id = id;
+       return true;
+    }
+    return false;
+}
 
 void ClusterMap::scan(Mat &d)
 {
