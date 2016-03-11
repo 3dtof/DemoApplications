@@ -9,9 +9,12 @@ This repository holds various demo applications, organised according to chipset 
 
 <h1>TinTin (OPT8241/OPT9221)</h1>
  
-    people_counter - demo running on Ubuntu 14.04 (Pandaboard and PC) using Voxel SDK that show
-                     people tracking/counting
+    people_tracking - demo running on Ubuntu 14.04 (PC) using Voxel SDK that show
+                      people tracking/counting using blob and contour analysis
 
     glass_gesture - demo running on Ubuntu 14.04 (Pandaboard and PC) that use OPT8241 to see
                     hand movement and use it for mouse control.
+
+    hand_tracking - demo running on Ubuntu 14.04 (PC) using Voxel SDK that show
+                    hand/finger tracking morphology/contour analysis
 
