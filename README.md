@@ -18,3 +18,6 @@ This repository holds various demo applications, organised according to chipset 
     hand_tracking - demo running on Ubuntu 14.04 (PC) using Voxel SDK that show
                     hand/finger tracking morphology/contour analysis
 
+	simple_people_tracking - demo running on Debian 8.3 (AM437x Rico board) using Voxel 
+					SDK that shows people tracking/counting using blob and contour analysis
+
