@@ -46,20 +46,40 @@ Jive::Jive(int w, int h) : TOFApp(w, h)
    _zFgMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
    _aFgMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
    _bMap = Mat::zeros(getDim().height, getDim().width, CV_8U);
+   _drawing = Mat::zeros(getDim().height, getDim().width, CV_8UC3 );
 
    _bkgUpdated = false;
    _aHeatMapThresh = 0;
    _zHeatMapThresh = 0;
+   _aDiffMapThresh = 0;
+   _zDiffMapThresh = 0;
    _heatMapCoef = 0.5;
-   _zLowThresh = 0;
-   _zHighThresh = 4095;
+   _zLowThresh = 0.02;
+   _zHighThresh = 1;
+   _aGain = 10;
+   _minContourSize = 100;
+   _minConvDefDepth = 100;
+   _movementCount = 0;
+   _Xmin = 0;
+   _Xmax = 319;
+   _Ymin = 0;
+   _Ymax = 239;
 
    // Setup parameter map
    _param["aHeatMapThresh"] = std::make_tuple(&_aHeatMapThresh, 1, 4095);
-   _param["zHeatMapThresh"] = std::make_tuple(&_zHeatMapThresh, 1, 4095);
+   _param["zHeatMapThresh"] = std::make_tuple(&_zHeatMapThresh, 1000, 2);
+   _param["aDiffMapThresh"] = std::make_tuple(&_aDiffMapThresh, 1, 4095);
+   _param["zDiffMapThresh"] = std::make_tuple(&_zDiffMapThresh, 1000, 2);
    _param["heatMapCoef"]    = std::make_tuple(&_heatMapCoef, 100, 1);
-   _param["zLowThresh"]     = std::make_tuple(&_zLowThresh, 1, 4095);
-   _param["zHighThresh"]    = std::make_tuple(&_zHighThresh, 1, 4095);
+   _param["zLowThresh"]     = std::make_tuple(&_zLowThresh, 1000, 2);
+   _param["zHighThresh"]    = std::make_tuple(&_zHighThresh, 1000, 2);
+   _param["aGain"]          = std::make_tuple(&_aGain, 10, 200);
+   _param["minContourSize"] = std::make_tuple(&_minContourSize, 1, 10000);
+   _param["minConvDefDepth"] = std::make_tuple(&_minConvDefDepth, 1, 300);
+   _param["Xmin"] = std::make_tuple(&_Xmin, 1, 319);
+   _param["Xmax"] = std::make_tuple(&_Xmax, 1, 319);
+   _param["Ymin"] = std::make_tuple(&_Ymin, 1, 239);
+   _param["Ymax"] = std::make_tuple(&_Ymax, 1, 239);
 
    // Setup image map
    _images["aMap"] = &_aMap;
@@ -75,6 +95,7 @@ Jive::Jive(int w, int h) : TOFApp(w, h)
    _images["zDiffMap"] = &_zDiffMap;
    _images["zPrevMap"] = &_zPrevMap;
    _images["bMap"] = &_bMap;
+   _images["drawing"] = &_drawing;
 
 }
 
@@ -128,9 +149,16 @@ void Jive::initDisplays()
 void Jive::displayMaps()
 {
    for (int i=0; i < _mapsToDisplay.size(); i++) 
-      imshow(_mapsToDisplay[i], *_images[_mapsToDisplay[i]]);
+   {
+      if (_mapsToDisplay[i] == "aMap" || _mapsToDisplay[i] == "aHeatMap" 
+       || _mapsToDisplay[i] == "aDiffMap" || _mapsToDisplay[i] == "aBkgMap" 
+       || _mapsToDisplay[i] == "drawing" ) 
+          imshow(_mapsToDisplay[i], *_images[_mapsToDisplay[i]]*_aGain );
+      else
+          imshow(_mapsToDisplay[i], *_images[_mapsToDisplay[i]] );
+   }
 }
-
+ 
 
 /*!
  * @brief  Get the list of prestored parameter strings
@@ -164,17 +192,65 @@ map< std::string, cv::Mat* > &Jive::getImageMap()
 
 
 /*!
+ * @brief  Check for movement.  
+ */
+bool Jive::noMovement(int t)
+{
+  bool rc=false;
+
+  if (cv::sum(abs(_zDiffMap))[0] > _zDiffMapThresh || cv::sum(abs(_aDiffMap))[0] > _aDiffMapThresh)
+     _movementCount = 0;
+
+  if (_movementCount++ >= t) 
+  {
+     _movementCount = t;
+     rc = true;
+  }
+    
+  return rc;
+}
+
+
+
+/*!
+ * @brief   Initialize control window based on Jive parameters
+ */
+void Jive::cropMaps(Mat &m, int xmin, int xmax, int ymin, int ymax)
+{
+   for (int i=0; i <  getDim().height; i++)  
+   {
+      for (int j=0; j< getDim().width; j++) 
+      {
+          if ((i < ymin || i > ymax) || (j<xmin || j>xmax))
+          {
+             m.at<uint8_t>(i,j) = 0;
+          }
+      }
+   }
+}
+
+/*!
+ * @brief  Find foreground based on thresholds.  
+ */
+void Jive::sampleBackground()
+{
+   _zMap.copyTo(_zBkgMap);
+   _aMap.copyTo(_aBkgMap);
+   _bkgUpdated = true;
+}
+
+
+/*!
  * @brief  Find foreground based on thresholds.  
  */
 void Jive::findForeground(float zLowThr, float zHighThr, Mat &fgMap)
 { 
-   Mat zFgMap = _zBkgMap-_zMap;
-
+   fgMap = _zBkgMap-_zMap;
    for (int i = 0; i < _zMap.rows; i++) 
    {
       for (int j = 0; j < _zMap.cols; j++) 
       {
-         if (zFgMap.at<float>(i,j)<zHighThr && zFgMap.at<float>(i,j)>zLowThr) 
+         if (fgMap.at<float>(i,j)<zHighThr && fgMap.at<float>(i,j)>zLowThr) 
             fgMap.at<float>(i,j) = 255.0f;
          else 
             fgMap.at<float>(i,j) = 0.0f;
@@ -197,12 +273,12 @@ void Jive::updateMaps(Frame *frame)
          int idx = i*getDim().width+j;
          _zMap.at<float>(i,j) = frm->points[idx].z;
          _aMap.at<float>(i,j) = frm->points[idx].i;
-         _zDiffMap.at<float>(i,j) = _zMap.at<float>(i,j)-_zPrevMap.at<float>(i,j);
-         _aDiffMap.at<float>(i,j) = _aMap.at<float>(i,j)-_aPrevMap.at<float>(i,j);
+         _zDiffMap.at<float>(i,j) = abs(_zMap.at<float>(i,j)-_zPrevMap.at<float>(i,j));
+         _aDiffMap.at<float>(i,j) = abs(_aMap.at<float>(i,j)-_aPrevMap.at<float>(i,j));
          _zHeatMap.at<float>(i,j) = (1-_heatMapCoef)*_zHeatMap.at<float>(i,j)
-                                  + _heatMapCoef*abs(_zDiffMap.at<float>(i,j));
+                                  + _heatMapCoef*_zDiffMap.at<float>(i,j);
          _aHeatMap.at<float>(i,j) = (1-_heatMapCoef)*_aHeatMap.at<float>(i,j)
-                                  + _heatMapCoef*abs(_aDiffMap.at<float>(i,j));
+                                  + _heatMapCoef*_aDiffMap.at<float>(i,j);
          _zPrevMap.at<float>(i,j) = _zMap.at<float>(i,j);
          _aPrevMap.at<float>(i,j) = _aMap.at<float>(i,j);
       }
@@ -216,17 +292,17 @@ void Jive::updateMaps(Frame *frame)
 void Jive::morphClean(Mat &in, Mat &out)
 {
    in.convertTo(out, CV_8U, 255.0);
-   Mat morph = out.clone();
-   Mat element = getStructuringElement( 0, Size(5,5), cv::Point(1,1) );
-   morphologyEx(out, morph, 2, element);
+   Mat a = out.clone();
+   Mat element = getStructuringElement( 0, Size(3,3), cv::Point(1,1) );
+   morphologyEx(a, out, 2, element);
 }
 
 
-#if 0
+
 /*!
  *  @brief   Try recognize gesture of qualified contour
  */
-bool Jive::findGestures(vector< vector<cv::Point> > &contours, enum Gesture &gesture, int[2] &values)
+bool Jive::findGesture(vector< vector<cv::Point> > &contours, enum Gesture &gesture, int *values)
 {
    bool found = false;
    int numHands = 0;
@@ -235,13 +311,14 @@ bool Jive::findGestures(vector< vector<cv::Point> > &contours, enum Gesture &ges
    // Find number of qualified hands and remember their contour index
    for (int i=0; i<contours.size(); i++) 
    {
-      if (contourArea(contours[i]) > _minContourArea) 
+      if (cv::contourArea(contours[i]) > (int)_minContourSize) 
       {
          if (numHands < 2)
             handContour[numHands] = i;
          numHands++;
       }
    }
+
 
    // Only process for 1 or 2 hands
    if (numHands <= 2) 
@@ -251,18 +328,26 @@ bool Jive::findGestures(vector< vector<cv::Point> > &contours, enum Gesture &ges
          // Find convex hull and defects
          vector<int> hulls, defects;
          vector<Vec4i> convDef;
-         vector<cv::Point> contour = contours[handContours[i]];
-         convexHull(Mat(contour, hulls, false ); 
+         vector<cv::Point> contour = contours[handContour[i]];
+         convexHull(Mat(contour), hulls, false); 
          convexityDefects(contour, hulls, convDef);
          for (int k=1; k<convDef.size(); k++) 
          {  
-            if (convDef[k][3] > _minConvDefDepth*256) 
+            if (convDef[k][3] > (int)_minConvDefDepth*256) 
             {
                int ind = convDef[k][2];
                defects.push_back(ind);
             } // if (convDef[k][3]) 
          } // for (k) 
 
+         // Draw hands
+         cv::drawContours(_drawing, contours, handContour[i], Scalar(0, 0, 255), 0, 1, vector<Vec4i>(), 0, cv::Point() ); 
+         for (int k=0; k<hulls.size(); k++)
+            cv::circle(_drawing, contours[handContour[i]][hulls[k]], 4, Scalar(0,255,0), 1 );
+         for (int k=0; k<defects.size(); k++) 
+	    cv::circle(_drawing, contours[handContour[i]][defects[k]], 4, Scalar(255,0,0), 1 );
+     
+#if 0
          // Find average hull point distances
          double dist, distAvg=0, distMax=0, distMin=1e10;
          cv::Point start = contour[hulls[0]];
@@ -284,13 +369,13 @@ bool Jive::findGestures(vector< vector<cv::Point> > &contours, enum Gesture &ges
          {
             if (hull
          }
-
+#endif
       } // for (i)
    } // if (numHands) 
-   
+
    return found;
 }
-#endif
+
 
 /*!
  *  @brief   Periodic called to update hand-tracking
@@ -306,15 +391,9 @@ void Jive::update(Frame *frame)
       // Update all maps
       updateMaps(frame);  
 
-      // Check if background should update
-      if (cv::sum(_zHeatMap)[0] < _zHeatMapThresh && cv::sum(_aHeatMap)[0] < _aHeatMapThresh)
-      {
-         _aMap.copyTo(_aBkgMap);
-         _zMap.copyTo(_zBkgMap);
-         _bkgUpdated = true;
-      }
+      _drawing = Mat::zeros(getDim().height, getDim().width, CV_8UC3 );
+      cvtColor(_aMap, _drawing, CV_GRAY2RGB);
 
-#if 0
       if (_bkgUpdated) 
       {
          // Find foregrounds based on amplitude and depth thresholds
@@ -323,14 +402,24 @@ void Jive::update(Frame *frame)
          // Apply morph 'open' to clean up _fgMap; generates _bMap
          morphClean(_zFgMap, _bMap);
 
+         // Crop unused sections
+         cropMaps(_bMap, (int)_Xmin, (int)_Xmax, (int)_Ymin, (int)_Ymax);
+
+         cv::line(_drawing, cv::Point(_Xmin, _Ymin), cv::Point(_Xmin, _Ymax), Scalar(0,0,255), 1);
+         cv::line(_drawing, cv::Point(_Xmin, _Ymax), cv::Point(_Xmax, _Ymax), Scalar(0,0,255), 1);
+         cv::line(_drawing, cv::Point(_Xmax, _Ymax), cv::Point(_Xmax, _Ymin), Scalar(0,0,255), 1);
+         cv::line(_drawing, cv::Point(_Xmax, _Ymin), cv::Point(_Xmin, _Ymin), Scalar(0,0,255), 1);
+
+         Mat canny = _bMap.clone();
+
          // Find all contours
-         findContours(_bMap, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0,0));
+         findContours(canny, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0,0));
 
          // Find gestures
-         enum Gestures gesture;
+         enum Gesture gesture;
          int values[2];
-         findGesture(hands, gesture, values);
-
+         findGesture(contours, gesture, values);
+#if 0
          // Dispatch gesture actions
          switch (gesture) 
          {
@@ -380,10 +469,9 @@ void Jive::update(Frame *frame)
             default:
                break;
          } // switch()
+#endif
 
       } // if (_bkgUpdated)
-
-#endif
 
       displayMaps();
 

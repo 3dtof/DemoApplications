@@ -67,20 +67,31 @@ int main(int argc, char *argv[])
 {
    int key;
    bool done = false;
-   Jive eye(160, 120);
-  
+   //Jive eye(160, 120);
+   Jive eye(320,240);
+
    if (!eye.connect(TOF_FRAME_TYPE)) {
       cout << "Cannot connect" << endl;
       return -1;
    }
    
+   eye.addMapToDisplay("aMap");
+   eye.addMapToDisplay("zMap");
+   eye.addMapToDisplay("bMap");
+   eye.addMapToDisplay("zFgMap");
+   eye.addMapToDisplay("aBkgMap");
    eye.addMapToDisplay("zBkgMap");
+   eye.addMapToDisplay("drawing");
+
    eye.initDisplays();
    eye.start();
    while (!done) {
       char key = getkey();
       if (key == 'q') 
          done = true;    
+      else if (key == 'b')
+         eye.sampleBackground();
+
       usleep(100000);
    }
 
