@@ -75,11 +75,11 @@ int main(int argc, char *argv[])
       return -1;
    }
    
-   eye.addMapToDisplay("aMap");
-   eye.addMapToDisplay("zMap");
-   eye.addMapToDisplay("bMap");
-   eye.addMapToDisplay("zFgMap");
-   eye.addMapToDisplay("aBkgMap");
+  // eye.addMapToDisplay("aMap");
+  // eye.addMapToDisplay("zMap");
+  // eye.addMapToDisplay("bMap");
+  // eye.addMapToDisplay("zFgMap");
+  // eye.addMapToDisplay("aBkgMap");
    eye.addMapToDisplay("zBkgMap");
    eye.addMapToDisplay("drawing");
 

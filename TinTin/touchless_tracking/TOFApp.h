@@ -31,6 +31,8 @@ using namespace std;
 using namespace Voxel;
 using namespace cv;
 
+#define TOF_WIDTH		320
+#define TOF_HEIGHT		240
 
 class TOFApp
 {

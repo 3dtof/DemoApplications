@@ -21,7 +21,9 @@
 #include <algorithm>
 
 /*!
+ *===========================================================================================
  * @brief   Initialize control window based on Jive parameters
+ *===========================================================================================
  */
 static void onTrackBar(int barVal, void *p)
 {
@@ -54,28 +56,35 @@ Jive::Jive(int w, int h) : TOFApp(w, h)
    _aDiffMapThresh = 0;
    _zDiffMapThresh = 0;
    _heatMapCoef = 0.5;
+   _zTrigger = 0.05;
    _zLowThresh = 0.02;
    _zHighThresh = 1;
    _aGain = 10;
    _minContourSize = 100;
-   _minConvDefDepth = 100;
+   _minConvDefDepth = 10;
    _movementCount = 0;
-   _Xmin = 0;
-   _Xmax = 319;
-   _Ymin = 0;
-   _Ymax = 239;
+   _separation = 5;
+   _Xmin = 66;
+   _Xmax = 279;
+   _Ymin = 51;
+   _Ymax = 171;
+   _maxAngle = 60.0;
+   
 
    // Setup parameter map
-   _param["aHeatMapThresh"] = std::make_tuple(&_aHeatMapThresh, 1, 4095);
-   _param["zHeatMapThresh"] = std::make_tuple(&_zHeatMapThresh, 1000, 2);
-   _param["aDiffMapThresh"] = std::make_tuple(&_aDiffMapThresh, 1, 4095);
-   _param["zDiffMapThresh"] = std::make_tuple(&_zDiffMapThresh, 1000, 2);
-   _param["heatMapCoef"]    = std::make_tuple(&_heatMapCoef, 100, 1);
-   _param["zLowThresh"]     = std::make_tuple(&_zLowThresh, 1000, 2);
-   _param["zHighThresh"]    = std::make_tuple(&_zHighThresh, 1000, 2);
-   _param["aGain"]          = std::make_tuple(&_aGain, 10, 200);
+   //_param["aHeatMapThresh"] = std::make_tuple(&_aHeatMapThresh, 1, 4095);
+   //_param["zHeatMapThresh"] = std::make_tuple(&_zHeatMapThresh, 1000, 2);
+   //_param["aDiffMapThresh"] = std::make_tuple(&_aDiffMapThresh, 1, 4095);
+   //_param["zDiffMapThresh"] = std::make_tuple(&_zDiffMapThresh, 1000, 2);
+   //_param["heatMapCoef"]    = std::make_tuple(&_heatMapCoef, 100, 1);
+   _param["zTrigger"] = std::make_tuple(&_zLowThresh, 1000, 2);
+   _param["zLowThresh"] = std::make_tuple(&_zLowThresh, 1000, 2);
+   _param["zHighThresh"] = std::make_tuple(&_zHighThresh, 1000, 2);
+   _param["aGain"] = std::make_tuple(&_aGain, 10, 200);
    _param["minContourSize"] = std::make_tuple(&_minContourSize, 1, 10000);
-   _param["minConvDefDepth"] = std::make_tuple(&_minConvDefDepth, 1, 300);
+   _param["minConvDefDepth"] = std::make_tuple(&_minConvDefDepth, 1, 300);   
+   _param["maxAngle"] = std::make_tuple(&_maxAngle, 1, 90);
+   _param["seperation"] = std::make_tuple(&_separation, 1, 40);
    _param["Xmin"] = std::make_tuple(&_Xmin, 1, 319);
    _param["Xmax"] = std::make_tuple(&_Xmax, 1, 319);
    _param["Ymin"] = std::make_tuple(&_Ymin, 1, 239);
@@ -101,7 +110,9 @@ Jive::Jive(int w, int h) : TOFApp(w, h)
 
 
 /*!
+ *===========================================================================================
  * @brief   Initialize control window based on Jive parameters
+ *===========================================================================================
  */
 void Jive::initControls()
 {
@@ -119,7 +130,9 @@ void Jive::initControls()
 
 
 /*!
+ *===========================================================================================
  * @brief   Initialize control window based on Jive parameters
+ *===========================================================================================
  */
 void Jive::addMapToDisplay(std::string name)
 {
@@ -129,7 +142,9 @@ void Jive::addMapToDisplay(std::string name)
 
 
 /*!
+ *===========================================================================================
  * @brief   Initialize control window based on Jive parameters
+ *===========================================================================================
  */
 void Jive::initDisplays()
 {
@@ -144,7 +159,9 @@ void Jive::initDisplays()
 
 
 /*!
+ *===========================================================================================
  * @brief   Initialize control window based on Jive parameters
+ *===========================================================================================
  */
 void Jive::displayMaps()
 {
@@ -152,7 +169,7 @@ void Jive::displayMaps()
    {
       if (_mapsToDisplay[i] == "aMap" || _mapsToDisplay[i] == "aHeatMap" 
        || _mapsToDisplay[i] == "aDiffMap" || _mapsToDisplay[i] == "aBkgMap" 
-       || _mapsToDisplay[i] == "drawing" ) 
+       || _mapsToDisplay[i] == "aFgMap" || _mapsToDisplay[i] == "drawing" ) 
           imshow(_mapsToDisplay[i], *_images[_mapsToDisplay[i]]*_aGain );
       else
           imshow(_mapsToDisplay[i], *_images[_mapsToDisplay[i]] );
@@ -161,7 +178,9 @@ void Jive::displayMaps()
  
 
 /*!
+ *===========================================================================================
  * @brief  Get the list of prestored parameter strings
+ *===========================================================================================
  */
 bool Jive::getParamList(vector<std::string> &s)
 {
@@ -174,7 +193,9 @@ bool Jive::getParamList(vector<std::string> &s)
 
 
 /*!
+ *===========================================================================================
  * @brief  Get the list of prestored parameter strings
+ *===========================================================================================
  */
 map< std::string, std::tuple<float*, int, float> > &Jive::getParamMap()
 {
@@ -183,7 +204,9 @@ map< std::string, std::tuple<float*, int, float> > &Jive::getParamMap()
 
 
 /*!
+ *===========================================================================================
  * @brief  Get the list of prestored parameter strings
+ *===========================================================================================
  */
 map< std::string, cv::Mat* > &Jive::getImageMap()
 {
@@ -192,7 +215,9 @@ map< std::string, cv::Mat* > &Jive::getImageMap()
 
 
 /*!
+ *===========================================================================================
  * @brief  Check for movement.  
+ *===========================================================================================
  */
 bool Jive::noMovement(int t)
 {
@@ -213,7 +238,9 @@ bool Jive::noMovement(int t)
 
 
 /*!
+ *===========================================================================================
  * @brief   Initialize control window based on Jive parameters
+ *===========================================================================================
  */
 void Jive::cropMaps(Mat &m, int xmin, int xmax, int ymin, int ymax)
 {
@@ -230,7 +257,9 @@ void Jive::cropMaps(Mat &m, int xmin, int xmax, int ymin, int ymax)
 }
 
 /*!
+ *===========================================================================================
  * @brief  Find foreground based on thresholds.  
+ *===========================================================================================
  */
 void Jive::sampleBackground()
 {
@@ -241,7 +270,9 @@ void Jive::sampleBackground()
 
 
 /*!
- * @brief  Find foreground based on thresholds.  
+ *===========================================================================================
+ * @brief  Find foreground based on thresholds. 
+ *=========================================================================================== 
  */
 void Jive::findForeground(float zLowThr, float zHighThr, Mat &fgMap)
 { 
@@ -260,7 +291,9 @@ void Jive::findForeground(float zLowThr, float zHighThr, Mat &fgMap)
 
 
 /*!
+ *===========================================================================================
  * @brief   Update the various maps used to make decisions
+ *===========================================================================================
  */
 void Jive::updateMaps(Frame *frame)
 {
@@ -273,21 +306,23 @@ void Jive::updateMaps(Frame *frame)
          int idx = i*getDim().width+j;
          _zMap.at<float>(i,j) = frm->points[idx].z;
          _aMap.at<float>(i,j) = frm->points[idx].i;
-         _zDiffMap.at<float>(i,j) = abs(_zMap.at<float>(i,j)-_zPrevMap.at<float>(i,j));
-         _aDiffMap.at<float>(i,j) = abs(_aMap.at<float>(i,j)-_aPrevMap.at<float>(i,j));
-         _zHeatMap.at<float>(i,j) = (1-_heatMapCoef)*_zHeatMap.at<float>(i,j)
-                                  + _heatMapCoef*_zDiffMap.at<float>(i,j);
-         _aHeatMap.at<float>(i,j) = (1-_heatMapCoef)*_aHeatMap.at<float>(i,j)
-                                  + _heatMapCoef*_aDiffMap.at<float>(i,j);
-         _zPrevMap.at<float>(i,j) = _zMap.at<float>(i,j);
-         _aPrevMap.at<float>(i,j) = _aMap.at<float>(i,j);
+         //_zDiffMap.at<float>(i,j) = abs(_zMap.at<float>(i,j)-_zPrevMap.at<float>(i,j));
+         //_aDiffMap.at<float>(i,j) = abs(_aMap.at<float>(i,j)-_aPrevMap.at<float>(i,j));
+         //_zHeatMap.at<float>(i,j) = (1-_heatMapCoef)*_zHeatMap.at<float>(i,j)
+          //                        + _heatMapCoef*_zDiffMap.at<float>(i,j);
+         //_aHeatMap.at<float>(i,j) = (1-_heatMapCoef)*_aHeatMap.at<float>(i,j)
+         //                         + _heatMapCoef*_aDiffMap.at<float>(i,j);
+        // _zPrevMap.at<float>(i,j) = _zMap.at<float>(i,j);
+         //_aPrevMap.at<float>(i,j) = _aMap.at<float>(i,j);
       }
    }
 }
 
 
 /*!
+ *===========================================================================================
  *  @brief   Perform morph 'open' to clean up the foregound image
+ *===========================================================================================
  */
 void Jive::morphClean(Mat &in, Mat &out)
 {
@@ -298,9 +333,208 @@ void Jive::morphClean(Mat &in, Mat &out)
 }
 
 
+/*!
+ *===========================================================================================
+ *  @brief   Find palm center
+ *===========================================================================================
+ */
+bool Jive::findPalmCenter(vector<cv::Point> &contour, cv::Point &center, float &radius)
+{
+   bool rc = false;
+   float m10, m01, m00;
+
+   m10 = m01 = m00 = 0;
+   for (int x=0; x < _bMap.cols; x++) {
+      for (int y=0; y < _bMap.rows; y++) {
+         cv::Point p = cv::Point(x, y);
+         if (pointPolygonTest(contour, p, false) >= 0) {
+            float val = (float)_bMap.at<uint8_t>(y, x);
+            m00 += val;
+            m10 += x*val;
+            m01 += y*val;
+         }
+      }
+   }
+   if (m00 > 0.0) { 
+      center = cv::Point((int)(m10/m00), (int)(m01/m00));
+      float r2 = 2*getDim().width*getDim().width;
+      for (int i=0; i<contour.size(); i++) {
+         float x2 = (float)contour[i].x - center.x;
+         x2 *= x2;
+         float y2 = (float)contour[i].y - center.y;
+         y2 *= y2;
+         if (r2 > x2+y2)
+            r2 = x2+y2;    
+      }
+      radius = sqrt(r2);
+      rc = true;
+   }
+   return rc;
+}
+
 
 /*!
+ *===========================================================================================
+ *  @brief   Find point closest to center of cluster
+ *===========================================================================================
+ */
+int Jive::findCenterPoint(vector<cv::Point> &contour, vector<int> &cluster)
+{
+   float minDist;
+   int minIndex = -1;
+   cv::Point centroid = cv::Point(0,0);
+
+   if (cluster.size() > 0)
+   {
+      // Find centroid
+      for (int i=0; i < cluster.size(); i++) 
+      {
+         centroid.x += contour[cluster[i]].x;
+         centroid.y += contour[cluster[i]].y;
+      }
+      centroid.x /= cluster.size();
+      centroid.y /= cluster.size();
+
+      // Find closest point to centroid
+      minDist = 1e10;
+      for (int i=0; i < cluster.size(); i++)
+      {
+         cv::Point p = contour[cluster[i]];
+         float dist = (float)(p.x-centroid.x)*(p.x-centroid.x) + (p.y-centroid.y)*(p.y-centroid.y);
+         if (dist < minDist) 
+         {
+            minDist = dist;
+            minIndex = cluster[i];
+         }
+      }
+   }
+
+   return minIndex;
+}
+
+
+/*!
+ *===========================================================================================
+ *  @brief   Find fingertips from convex hull
+ *===========================================================================================
+ */
+bool Jive::findTips(vector<cv::Point> &contour, vector<int> &hulls, vector<int> &tips, float maxDist)
+{
+   bool found = false;
+   int first, second;
+   cv::Point p1, p2;
+   vector<int> cluster;
+
+   tips.clear();
+   if (hulls.size() > 0)
+   {
+	   for (int h=0; h <hulls.size(); h++) 
+	   {
+	      bool failed = false;
+	      cv::Point p1 = contour[hulls[h]];
+	      for (int c=0; c<cluster.size(); c++)
+	      {
+		      cv::Point p2 = contour[cluster[c]];
+		      double dist = sqrt((double)(p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
+		      if (dist > (double)maxDist)
+		      {
+		         failed = true; 
+		         break;
+		      }
+	      }
+
+	      if (!failed || cluster.size() == 0)
+	      {
+		      cluster.push_back(hulls[h]);
+	      }  
+	      else 
+	      {
+		      int k= findCenterPoint(contour, cluster);
+		      if (k != -1)
+		      {
+		         tips.push_back(k);
+		      }
+		      cluster.clear();
+            cluster.push_back(hulls[h]);
+		      found = true;
+	      }
+	   }
+	   if (cluster.size() > 0) 
+	   {
+	      int k= findCenterPoint(contour, cluster);
+	      if (k != -1)
+	      {
+		      tips.push_back(k);
+	      }
+	      cluster.clear();
+	      found = true;
+	   }
+   }
+
+   return found;
+}
+
+
+/*!
+ *===========================================================================================
+ *  @brief   Find fingertips from k-Curvature
+ *===========================================================================================
+ */
+void Jive::findKCurv(vector<cv::Point> &contour, vector<int> &hull, int kmin, int kmax, 
+                     double ang, vector<int> &tips)
+{
+   int closest = 100000;
+   float closest_a = 10e10;
+
+   tips.clear();
+   for (int i=0; i < hull.size(); i++) {
+      int n = hull[i];
+      cv::Point p = contour[n];
+      bool done = false;
+      for (int k = 1; k < kmax && !done; k++) {
+         cv::Point p1 = (n-k < 0) ? contour[contour.size()+(n-k)] : contour[n-k];
+         cv::Point p2 = (n+k >= contour.size()) ? contour[n+k-contour.size()] : contour[n+k];
+         cv::Point v1 = cv::Point(p1.x-p.x, p1.y-p.y);
+         cv::Point v2 = cv::Point(p2.x-p.x, p2.y-p.y);
+         double dval = (float)(v1.x*v2.x + v1.y*v2.y) / (sqrt(v1.x*v1.x+v1.y*v1.y) * sqrt(v2.x*v2.x+v2.y*v2.y));
+         double a = acos(dval)*180.0/3.1415926;
+
+         if (p.y < closest) {
+            closest = n;
+            closest_a = a;
+         }
+
+         if (a < ang && k >= kmin) 
+         {
+            Scalar color = Scalar(0,255,00);
+            cv::line(_drawing, p, p1, color);
+            cv::line(_drawing, p, p2, color);
+            tips.push_back(n);
+            done = true;
+         } 
+
+      } 
+   }
+}
+
+
+
+/*!
+ *===========================================================================================
+ *  @brief   Auto adjust pixel distance based on scaled image
+ *===========================================================================================
+ */
+int Jive::adjPix(int pix)
+{
+   int out = pix*getDim().width/TOF_WIDTH;
+   return (out<=0)?1:out;
+}
+
+
+/*!
+ *===========================================================================================
  *  @brief   Try recognize gesture of qualified contour
+ *===========================================================================================
  */
 bool Jive::findGesture(vector< vector<cv::Point> > &contours, enum Gesture &gesture, int *values)
 {
@@ -308,10 +542,12 @@ bool Jive::findGesture(vector< vector<cv::Point> > &contours, enum Gesture &gest
    int numHands = 0;
    int handContour[2];
 
+   gesture = GESTURE_NULL;
+
    // Find number of qualified hands and remember their contour index
    for (int i=0; i<contours.size(); i++) 
    {
-      if (cv::contourArea(contours[i]) > (int)_minContourSize) 
+      if (cv::contourArea(contours[i]) > adjPix((int)_minContourSize)) 
       {
          if (numHands < 2)
             handContour[numHands] = i;
@@ -321,7 +557,7 @@ bool Jive::findGesture(vector< vector<cv::Point> > &contours, enum Gesture &gest
 
 
    // Only process for 1 or 2 hands
-   if (numHands <= 2) 
+   if (numHands <= MAX_HANDS) 
    {
       for (int i=0; i < numHands; i++) 
       {
@@ -333,44 +569,52 @@ bool Jive::findGesture(vector< vector<cv::Point> > &contours, enum Gesture &gest
          convexityDefects(contour, hulls, convDef);
          for (int k=1; k<convDef.size(); k++) 
          {  
-            if (convDef[k][3] > (int)_minConvDefDepth*256) 
+            if (convDef[k][3] > adjPix((int)_minConvDefDepth)*256) 
             {
                int ind = convDef[k][2];
                defects.push_back(ind);
             } // if (convDef[k][3]) 
          } // for (k) 
 
-         // Draw hands
-         cv::drawContours(_drawing, contours, handContour[i], Scalar(0, 0, 255), 0, 1, vector<Vec4i>(), 0, cv::Point() ); 
-         for (int k=0; k<hulls.size(); k++)
-            cv::circle(_drawing, contours[handContour[i]][hulls[k]], 4, Scalar(0,255,0), 1 );
-         for (int k=0; k<defects.size(); k++) 
-	    cv::circle(_drawing, contours[handContour[i]][defects[k]], 4, Scalar(255,0,0), 1 );
-     
-#if 0
-         // Find average hull point distances
-         double dist, distAvg=0, distMax=0, distMin=1e10;
-         cv::Point start = contour[hulls[0]];
-         for (int j=1; j<hulls.size(); j++)
+         // Remove 'border' hulls
+         vector<int> newhulls;
+         for (int i=0; i< hulls.size(); i++) 
          {
-            dist = cv::norm(contour[hulls[j]]-start);
-            distMax = (dist > distMax) ? dist : distMax;
-            distMin = (dist < distMin) ? dist : distMin;
-            distAvg += dist;
-            start = contour[hulls[j]];
+            cv::Point p = contour[hulls[i]];
+            if (p.y > _Ymin+5 && p.y < _Ymax-5 && p.x < _Xmax-2 && p.x > _Xmin+2  ) 
+               newhulls.push_back(hulls[i]);
          }
-         dist = cv::norm(contour[hulls[j]]-start);
-         distMax = (dist > distMax) ? dist : distMax;
-         distMin = (dist < distMin) ? dist : distMin;
-         distAvg += dist;
-         distAvg /= (double)hulls.size();
+         hulls = newhulls;
+ 
+         // Find palms
+         findPalmCenter(contour, _palmCenter[i], _palmRadius[i]);
 
-         for (int j=0; j< hulls.size(); j++) 
-         {
-            if (hull
-         }
+         // Find kCurv
+         vector<int> tips_temp;
+         findKCurv(contour, hulls, adjPix(5), adjPix(8), _maxAngle, tips_temp);
+    
+         // Find tips
+         int rc = findTips(contour, tips_temp, _tips[i], (float)adjPix((int)_separation));
+
+         // Draw hand
+         cv::drawContours(_drawing, contours, handContour[i], Scalar(0, 0, 255), 0, 1, vector<Vec4i>(), 0, cv::Point() ); 
+
+
+         // Draw tips
+         for (int k=0; k<_tips[i].size(); k++) 
+            cv::circle(_drawing, contour[_tips[i][k]], 4, Scalar(255,255,0), 1 );
+
+#if 1
+         // Draw defects
+         for (int k=0; k<defects.size(); k++) 
+	         cv::circle(_drawing, contour[defects[k]], 4, Scalar(255,0,255), 1 );
 #endif
+         // Draw palm
+         cv::circle(_drawing, _palmCenter[i], (int)_palmRadius[i], Scalar(0,255,0), 1);
+     
       } // for (i)
+
+      
    } // if (numHands) 
 
    return found;
@@ -378,7 +622,9 @@ bool Jive::findGesture(vector< vector<cv::Point> > &contours, enum Gesture &gest
 
 
 /*!
+ *===========================================================================================
  *  @brief   Periodic called to update hand-tracking
+ *===========================================================================================
  */
 void Jive::update(Frame *frame)
 {

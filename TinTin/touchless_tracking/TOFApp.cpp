@@ -22,8 +22,6 @@
 #define FRAME_QUEUE_SZ		3
 #define DEFAULT_ILLUM_POWER	100
 #define DEFAULT_EXPOSURE	20
-#define TOF_WIDTH		320
-#define TOF_HEIGHT		240
 
 
 //=============================================================================

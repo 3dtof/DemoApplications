@@ -24,6 +24,8 @@
 #ifndef __JIVE_H__
 #define __JIVE_H__
 
+#define MAX_HANDS	2
+
 class Jive : public TOFApp
 {
 public:
@@ -64,6 +66,7 @@ private:
    float _aDiffMapThresh;
    float _zDiffMapThresh;
    float _heatMapCoef;
+   float _zTrigger;
    float _zHighThresh;
    float _zLowThresh;
    float _aGain;
@@ -71,7 +74,12 @@ private:
    float _minConvDefDepth;
    float _Xmin, _Xmax;
    float _Ymin, _Ymax;
+   cv::Point _palmCenter[MAX_HANDS];
+   float _palmRadius[MAX_HANDS];
+   vector<int> _tips[MAX_HANDS];
+   float _maxAngle;
    int _movementCount;
+   float _separation;
 
 
    // Parameter map:  <ptr, precision, max>
@@ -91,6 +99,11 @@ private:
    bool noMovement(int t);
    void cropMaps(Mat &m, int xmin, int xmax, int ymin, int ymax);
    bool findGesture(vector< vector<cv::Point> > &contours, enum Gesture &gesture, int *value);
+   bool findPalmCenter(vector<cv::Point> &contour, cv::Point &center, float &radius);
+   void findKCurv(vector<cv::Point> &contour, vector<int> &hull, int kmin, int kmax, double ang, vector<int> &tips);
+   bool findTips(vector<cv::Point> &contour, vector<int> &hulls, vector<int> &tips, float maxDist);
+   int findCenterPoint(vector<cv::Point> &contour, vector<int> &cluster);
+   int adjPix(int pix);
 };
 
 #endif // __JIVE_H__
