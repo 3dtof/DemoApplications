@@ -67,7 +67,6 @@ int main(int argc, char *argv[])
 {
    int key;
    bool done = false;
-   //Jive eye(160, 120);
    Jive eye(320,240);
 
    if (!eye.connect(TOF_FRAME_TYPE)) {
