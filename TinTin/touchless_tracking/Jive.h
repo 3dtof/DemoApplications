@@ -20,6 +20,7 @@
 #include <map>
 #include <tuple>
 #include <string>
+#include "FakeMouse.h"
 
 #ifndef __JIVE_H__
 #define __JIVE_H__
@@ -28,22 +29,6 @@
 
 class Jive : public TOFApp
 {
-public:
-   enum Gesture
-   {
-      GESTURE_NULL = 0,
-      GESTURE_1H1F,
-      GESTURE_1H2F,
-      GESTURE_1H3F,
-      GESTURE_1H4F,
-      GESTURE_1H5F,
-      GESTURE_2H1F,
-      GESTURE_2H2F,
-      GESTURE_2H3F,
-      GESTURE_2H4F,
-      GESTURE_2H5F,
-   };
-
 public:
    Jive(int w, int h);
    void update(Frame *frm);
@@ -55,17 +40,12 @@ public:
    void sampleBackground();
 
 private:
-   Mat _aMap, _aBkgMap, _aFgMap, _aHeatMap, _aDiffMap, _aPrevMap;
-   Mat _zMap, _zBkgMap, _zFgMap, _zHeatMap, _zDiffMap, _zPrevMap;
+   Mat _aMap, _aBkgMap, _aFgMap, _aPrevMap;
+   Mat _zMap, _zBkgMap, _zFgMap, _zPrevMap;
    Mat _bMap, _drawing;
 
    bool _bkgUpdated;
    XYZIPointCloudFrame _prevFrame;
-   float _aHeatMapThresh;
-   float _zHeatMapThresh;
-   float _aDiffMapThresh;
-   float _zDiffMapThresh;
-   float _heatMapCoef;
    float _zTrigger;
    float _zHighThresh;
    float _zLowThresh;
@@ -74,13 +54,14 @@ private:
    float _minConvDefDepth;
    float _Xmin, _Xmax;
    float _Ymin, _Ymax;
-   cv::Point _palmCenter[MAX_HANDS];
-   float _palmRadius[MAX_HANDS];
-   vector<int> _tips[MAX_HANDS];
-   float _maxAngle;
-   int _movementCount;
-   float _separation;
-
+   float _Xcur, _Ycur;
+   cv::Point _palmCenter[2];
+   float _palmRadius[2];
+   cv::Point _handTip[2];
+   int _leftHand, _rightHand;
+   int _numHands;
+   int _handContour[2];
+   vector< vector<cv::Point> > _contours;
 
    // Parameter map:  <ptr, precision, max>
    map< std::string, std::tuple<float*, int, float> > _param;
@@ -90,20 +71,19 @@ private:
    // Display and controls
    vector<int> _sliderPos;
 
+   // Mouse
+   FakeMouse mouse;
+
 private:
    void findForeground(float zLowThr, float aHighThr, Mat &fgMap);
    void updateMaps(Frame *frame);
    void morphClean(Mat &in, Mat &out);
    void initControls();
    void displayMaps();
-   bool noMovement(int t);
    void cropMaps(Mat &m, int xmin, int xmax, int ymin, int ymax);
-   bool findGesture(vector< vector<cv::Point> > &contours, enum Gesture &gesture, int *value);
-   bool findPalmCenter(vector<cv::Point> &contour, cv::Point &center, float &radius);
-   void findKCurv(vector<cv::Point> &contour, vector<int> &hull, int kmin, int kmax, double ang, vector<int> &tips);
-   bool findTips(vector<cv::Point> &contour, vector<int> &hulls, vector<int> &tips, float maxDist);
-   int findCenterPoint(vector<cv::Point> &contour, vector<int> &cluster);
-   int adjPix(int pix);
+   bool findContourCenter(vector<cv::Point> &contour, cv::Point &center, float &radius);
+   bool findHandTips(vector< vector<cv::Point> > &contours);
+   
 };
 
 #endif // __JIVE_H__

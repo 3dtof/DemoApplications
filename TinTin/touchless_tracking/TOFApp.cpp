@@ -19,9 +19,9 @@
 
 #include "TOFApp.h"
 
-#define FRAME_QUEUE_SZ		3
+#define FRAME_QUEUE_SZ		   3
 #define DEFAULT_ILLUM_POWER	100
-#define DEFAULT_EXPOSURE	20
+#define DEFAULT_EXPOSURE	   20
 
 
 //=============================================================================
@@ -41,7 +41,7 @@ static void frameCallback(DepthCamera &dc, const Frame &frame, DepthCamera::Fram
          qFrame.push_back(nf);
       }
       else if (c == DepthCamera::FRAME_XYZI_POINT_CLOUD_FRAME) {
-	 const Voxel::XYZIPointCloudFrame *f = dynamic_cast<const Voxel::XYZIPointCloudFrame *>(&frame);
+	      const Voxel::XYZIPointCloudFrame *f = dynamic_cast<const Voxel::XYZIPointCloudFrame *>(&frame);
          Voxel::Frame *nf = dynamic_cast<const Voxel::Frame *>(new Voxel::XYZIPointCloudFrame(*f));                    
          qFrame.push_back(nf);
       }
@@ -212,7 +212,30 @@ bool TOFApp::connect(DepthCamera::FrameType frmType)
    }
    else 
       return false;
-              
+
+   // setup spatial and temportal median filters
+   FilterPtr p = _sys.createFilter("Voxel::MedianFilter", DepthCamera::FRAME_RAW_FRAME_PROCESSED); 
+   if (!p) 
+   {
+      logger(LOG_ERROR) << "Failed to get MedianFilter" << std::endl;
+      return -1;
+   }
+
+   _depthCamera->addFilter(p, DepthCamera::FRAME_RAW_FRAME_PROCESSED);
+  
+#if 1
+   p = _sys.createFilter("Voxel::TemporalMedianFilter",  DepthCamera::FRAME_RAW_FRAME_PROCESSED);
+   if (!p)
+   {
+      logger(LOG_ERROR) << "Failed to get TemporalMedianFilter" << std::endl;
+      return -1;
+   }
+   
+   p->set("deadband", 0.01f);
+   _depthCamera->addFilter(p, DepthCamera::FRAME_RAW_FRAME_PROCESSED);
+#endif
+
+   // Setup frame callback profile and settings
    _frameType = frmType;
    _depthCamera->registerCallback(_frameType, frameCallback);
    _depthCamera->setFrameSize(_dimen);
@@ -220,28 +243,10 @@ bool TOFApp::connect(DepthCamera::FrameType frmType)
       cout << "Profile " << _profile << " found." << endl;
    else 
       cout << "Profile " << _profile << "not found." << endl;
-   
    setIllumPower(DEFAULT_ILLUM_POWER);
    setExposure(DEFAULT_EXPOSURE);
 
-#if 0
-   FilterPtr p = _sys.createFilter("Voxel::MedianFilter", DepthCamera::FRAME_RAW_FRAME_PROCESSED);
-   if (!p) {
-      logger(LOG_ERROR) << "Failed to get MedianFilter" << std::endl;
-      return false;
-   }
-   //p->set("deadband", 0.1f);
-   _depthCamera->addFilter(p, DepthCamera::FRAME_RAW_FRAME_PROCESSED, 0);
-
-   p = _sys.createFilter("Voxel::TemporalMedianFilter", DepthCamera::FRAME_RAW_FRAME_PROCESSED);
-   if (!p) {
-      logger(LOG_ERROR) << "Failed to get TemporalMedianFilter" << std::endl;
-      return false;
-   }
-   //p->set("deadband", 0.01f);
-   _depthCamera->addFilter(p, DepthCamera::FRAME_RAW_FRAME_PROCESSED, 0);
-#endif
-
+   // Start the camera
    _depthCamera->start();
    _isConnected = true;
 

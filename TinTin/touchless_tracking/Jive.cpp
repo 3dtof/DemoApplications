@@ -1,5 +1,5 @@
 /*! 
- * ============================================================================
+ * ==========================================================================================
  *
  * @addtogroup		Jive	
  * @{
@@ -13,7 +13,7 @@
  * Copyright(c) 20015-2016 Texas Instruments Corporation, All Rights Reserved.q
  * TI makes NO WARRANTY as to software products, which are supplied "AS-IS"
  *
- * ============================================================================
+ * ==========================================================================================
  */
 #define __JIVE_CPP__
 #include "Jive.h"
@@ -37,12 +37,6 @@ Jive::Jive(int w, int h) : TOFApp(w, h)
 {
    _zMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
    _aMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
-   _zDiffMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
-   _aDiffMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
-   _zHeatMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
-   _aHeatMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
-   _zPrevMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
-   _aPrevMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
    _zBkgMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
    _aBkgMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
    _zFgMap = Mat::zeros(getDim().height, getDim().width, CV_32FC1);
@@ -51,61 +45,41 @@ Jive::Jive(int w, int h) : TOFApp(w, h)
    _drawing = Mat::zeros(getDim().height, getDim().width, CV_8UC3 );
 
    _bkgUpdated = false;
-   _aHeatMapThresh = 0;
-   _zHeatMapThresh = 0;
-   _aDiffMapThresh = 0;
-   _zDiffMapThresh = 0;
-   _heatMapCoef = 0.5;
-   _zTrigger = 0.05;
-   _zLowThresh = 0.02;
+   _zTrigger = 0.03;
+   _zLowThresh = 0.01;
    _zHighThresh = 1;
    _aGain = 10;
    _minContourSize = 100;
-   _minConvDefDepth = 10;
-   _movementCount = 0;
-   _separation = 5;
    _Xmin = 66;
    _Xmax = 279;
    _Ymin = 51;
    _Ymax = 171;
-   _maxAngle = 60.0;
+   _Xcur = 0;
+   _Ycur = 0;
    
 
    // Setup parameter map
-   //_param["aHeatMapThresh"] = std::make_tuple(&_aHeatMapThresh, 1, 4095);
-   //_param["zHeatMapThresh"] = std::make_tuple(&_zHeatMapThresh, 1000, 2);
-   //_param["aDiffMapThresh"] = std::make_tuple(&_aDiffMapThresh, 1, 4095);
-   //_param["zDiffMapThresh"] = std::make_tuple(&_zDiffMapThresh, 1000, 2);
-   //_param["heatMapCoef"]    = std::make_tuple(&_heatMapCoef, 100, 1);
-   _param["zTrigger"] = std::make_tuple(&_zLowThresh, 1000, 2);
+   _param["zTrigger"] = std::make_tuple(&_zTrigger, 1000, 2);
    _param["zLowThresh"] = std::make_tuple(&_zLowThresh, 1000, 2);
    _param["zHighThresh"] = std::make_tuple(&_zHighThresh, 1000, 2);
    _param["aGain"] = std::make_tuple(&_aGain, 10, 200);
    _param["minContourSize"] = std::make_tuple(&_minContourSize, 1, 10000);
-   _param["minConvDefDepth"] = std::make_tuple(&_minConvDefDepth, 1, 300);   
-   _param["maxAngle"] = std::make_tuple(&_maxAngle, 1, 90);
-   _param["seperation"] = std::make_tuple(&_separation, 1, 40);
    _param["Xmin"] = std::make_tuple(&_Xmin, 1, 319);
    _param["Xmax"] = std::make_tuple(&_Xmax, 1, 319);
    _param["Ymin"] = std::make_tuple(&_Ymin, 1, 239);
    _param["Ymax"] = std::make_tuple(&_Ymax, 1, 239);
+   _param["Xcur"] = std::make_tuple(&_Xcur, 1, 300);
+   _param["Ycur"] = std::make_tuple(&_Ycur, 1, 300);
 
    // Setup image map
    _images["aMap"] = &_aMap;
    _images["aBkgMap"] = &_aBkgMap;
    _images["aFgMap"] = &_aFgMap;
-   _images["aHeatMap"] = &_aHeatMap;
-   _images["aDiffMap"] = &_aDiffMap;
-   _images["aPrevMap"] = &_aPrevMap;
    _images["zMap"] = &_zMap;
    _images["zBkgMap"] = &_zBkgMap;
    _images["zFgMap"] = &_zFgMap;
-   _images["zHeatMap"] = &_zHeatMap;
-   _images["zDiffMap"] = &_zDiffMap;
-   _images["zPrevMap"] = &_zPrevMap;
    _images["bMap"] = &_bMap;
    _images["drawing"] = &_drawing;
-
 }
 
 
@@ -165,10 +139,46 @@ void Jive::initDisplays()
  */
 void Jive::displayMaps()
 {
+   // Draw crop lines
+   cv::line(_drawing, cv::Point(_Xmin, _Ymin), cv::Point(_Xmin, _Ymax), Scalar(0,0,255), 1);
+   cv::line(_drawing, cv::Point(_Xmin, _Ymax), cv::Point(_Xmax, _Ymax), Scalar(0,0,255), 1);
+   cv::line(_drawing, cv::Point(_Xmax, _Ymax), cv::Point(_Xmax, _Ymin), Scalar(0,0,255), 1);
+   cv::line(_drawing, cv::Point(_Xmax, _Ymin), cv::Point(_Xmin, _Ymin), Scalar(0,0,255), 1);
+
+   // Draw hand features
+   if (_bkgUpdated && _numHands > 0) 
+   {
+      for (int i=0; i < _numHands; i++) 
+      { 
+         // Draw tip of hand
+         Scalar color = Scalar(0,255,255);
+         int sz = 4;
+         if (_zBkgMap.at<float>(_handTip[i]) - _zMap.at<float>(_handTip[i]) < _zTrigger) 
+         {
+            sz = 10;    
+         }
+         cv::circle(_drawing, _handTip[i], sz, color, 1);
+
+         // Draw palm
+         cv::circle(_drawing, _palmCenter[i], (int)_palmRadius[i], Scalar(0,255,0), 1);
+         
+         // Draw hand
+         cv::drawContours(_drawing, _contours, _handContour[i], Scalar(0, 0, 255), 0, 1, vector<Vec4i>(), 0, cv::Point() ); 
+
+         // Draw text
+         if (_numHands == 2) 
+         {
+            std::string s = (i == _leftHand) ? "LEFT" : "RIGHT";
+            cv::putText(_drawing, s, _handTip[i], FONT_HERSHEY_COMPLEX_SMALL, 0.4, Scalar(255,255,255));
+         }  
+      } // for (i)
+
+   }
+
+   // Display all registered maps
    for (int i=0; i < _mapsToDisplay.size(); i++) 
    {
-      if (_mapsToDisplay[i] == "aMap" || _mapsToDisplay[i] == "aHeatMap" 
-       || _mapsToDisplay[i] == "aDiffMap" || _mapsToDisplay[i] == "aBkgMap" 
+      if (_mapsToDisplay[i] == "aMap" || _mapsToDisplay[i] == "aBkgMap" 
        || _mapsToDisplay[i] == "aFgMap" || _mapsToDisplay[i] == "drawing" ) 
           imshow(_mapsToDisplay[i], *_images[_mapsToDisplay[i]]*_aGain );
       else
@@ -212,30 +222,6 @@ map< std::string, cv::Mat* > &Jive::getImageMap()
 {
    return _images;
 }
-
-
-/*!
- *===========================================================================================
- * @brief  Check for movement.  
- *===========================================================================================
- */
-bool Jive::noMovement(int t)
-{
-  bool rc=false;
-
-  if (cv::sum(abs(_zDiffMap))[0] > _zDiffMapThresh || cv::sum(abs(_aDiffMap))[0] > _aDiffMapThresh)
-     _movementCount = 0;
-
-  if (_movementCount++ >= t) 
-  {
-     _movementCount = t;
-     rc = true;
-  }
-    
-  return rc;
-}
-
-
 
 /*!
  *===========================================================================================
@@ -306,14 +292,6 @@ void Jive::updateMaps(Frame *frame)
          int idx = i*getDim().width+j;
          _zMap.at<float>(i,j) = frm->points[idx].z;
          _aMap.at<float>(i,j) = frm->points[idx].i;
-         //_zDiffMap.at<float>(i,j) = abs(_zMap.at<float>(i,j)-_zPrevMap.at<float>(i,j));
-         //_aDiffMap.at<float>(i,j) = abs(_aMap.at<float>(i,j)-_aPrevMap.at<float>(i,j));
-         //_zHeatMap.at<float>(i,j) = (1-_heatMapCoef)*_zHeatMap.at<float>(i,j)
-          //                        + _heatMapCoef*_zDiffMap.at<float>(i,j);
-         //_aHeatMap.at<float>(i,j) = (1-_heatMapCoef)*_aHeatMap.at<float>(i,j)
-         //                         + _heatMapCoef*_aDiffMap.at<float>(i,j);
-        // _zPrevMap.at<float>(i,j) = _zMap.at<float>(i,j);
-         //_aPrevMap.at<float>(i,j) = _aMap.at<float>(i,j);
       }
    }
 }
@@ -338,7 +316,7 @@ void Jive::morphClean(Mat &in, Mat &out)
  *  @brief   Find palm center
  *===========================================================================================
  */
-bool Jive::findPalmCenter(vector<cv::Point> &contour, cv::Point &center, float &radius)
+bool Jive::findContourCenter(vector<cv::Point> &contour, cv::Point &center, float &radius)
 {
    bool rc = false;
    float m10, m01, m00;
@@ -373,252 +351,81 @@ bool Jive::findPalmCenter(vector<cv::Point> &contour, cv::Point &center, float &
 }
 
 
-/*!
- *===========================================================================================
- *  @brief   Find point closest to center of cluster
- *===========================================================================================
- */
-int Jive::findCenterPoint(vector<cv::Point> &contour, vector<int> &cluster)
-{
-   float minDist;
-   int minIndex = -1;
-   cv::Point centroid = cv::Point(0,0);
-
-   if (cluster.size() > 0)
-   {
-      // Find centroid
-      for (int i=0; i < cluster.size(); i++) 
-      {
-         centroid.x += contour[cluster[i]].x;
-         centroid.y += contour[cluster[i]].y;
-      }
-      centroid.x /= cluster.size();
-      centroid.y /= cluster.size();
-
-      // Find closest point to centroid
-      minDist = 1e10;
-      for (int i=0; i < cluster.size(); i++)
-      {
-         cv::Point p = contour[cluster[i]];
-         float dist = (float)(p.x-centroid.x)*(p.x-centroid.x) + (p.y-centroid.y)*(p.y-centroid.y);
-         if (dist < minDist) 
-         {
-            minDist = dist;
-            minIndex = cluster[i];
-         }
-      }
-   }
-
-   return minIndex;
-}
-
 
 /*!
  *===========================================================================================
- *  @brief   Find fingertips from convex hull
+ *  @brief   Find hand tips of qualified contour
  *===========================================================================================
  */
-bool Jive::findTips(vector<cv::Point> &contour, vector<int> &hulls, vector<int> &tips, float maxDist)
+bool Jive::findHandTips(vector< vector<cv::Point> > &contours)
 {
    bool found = false;
-   int first, second;
-   cv::Point p1, p2;
-   vector<int> cluster;
 
-   tips.clear();
-   if (hulls.size() > 0)
-   {
-	   for (int h=0; h <hulls.size(); h++) 
-	   {
-	      bool failed = false;
-	      cv::Point p1 = contour[hulls[h]];
-	      for (int c=0; c<cluster.size(); c++)
-	      {
-		      cv::Point p2 = contour[cluster[c]];
-		      double dist = sqrt((double)(p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
-		      if (dist > (double)maxDist)
-		      {
-		         failed = true; 
-		         break;
-		      }
-	      }
+   _leftHand = 0;
+   _rightHand = 1;
 
-	      if (!failed || cluster.size() == 0)
-	      {
-		      cluster.push_back(hulls[h]);
-	      }  
-	      else 
-	      {
-		      int k= findCenterPoint(contour, cluster);
-		      if (k != -1)
-		      {
-		         tips.push_back(k);
-		      }
-		      cluster.clear();
-            cluster.push_back(hulls[h]);
-		      found = true;
-	      }
-	   }
-	   if (cluster.size() > 0) 
-	   {
-	      int k= findCenterPoint(contour, cluster);
-	      if (k != -1)
-	      {
-		      tips.push_back(k);
-	      }
-	      cluster.clear();
-	      found = true;
-	   }
-   }
-
-   return found;
-}
-
-
-/*!
- *===========================================================================================
- *  @brief   Find fingertips from k-Curvature
- *===========================================================================================
- */
-void Jive::findKCurv(vector<cv::Point> &contour, vector<int> &hull, int kmin, int kmax, 
-                     double ang, vector<int> &tips)
-{
-   int closest = 100000;
-   float closest_a = 10e10;
-
-   tips.clear();
-   for (int i=0; i < hull.size(); i++) {
-      int n = hull[i];
-      cv::Point p = contour[n];
-      bool done = false;
-      for (int k = 1; k < kmax && !done; k++) {
-         cv::Point p1 = (n-k < 0) ? contour[contour.size()+(n-k)] : contour[n-k];
-         cv::Point p2 = (n+k >= contour.size()) ? contour[n+k-contour.size()] : contour[n+k];
-         cv::Point v1 = cv::Point(p1.x-p.x, p1.y-p.y);
-         cv::Point v2 = cv::Point(p2.x-p.x, p2.y-p.y);
-         double dval = (float)(v1.x*v2.x + v1.y*v2.y) / (sqrt(v1.x*v1.x+v1.y*v1.y) * sqrt(v2.x*v2.x+v2.y*v2.y));
-         double a = acos(dval)*180.0/3.1415926;
-
-         if (p.y < closest) {
-            closest = n;
-            closest_a = a;
-         }
-
-         if (a < ang && k >= kmin) 
-         {
-            Scalar color = Scalar(0,255,00);
-            cv::line(_drawing, p, p1, color);
-            cv::line(_drawing, p, p2, color);
-            tips.push_back(n);
-            done = true;
-         } 
-
-      } 
-   }
-}
-
-
-
-/*!
- *===========================================================================================
- *  @brief   Auto adjust pixel distance based on scaled image
- *===========================================================================================
- */
-int Jive::adjPix(int pix)
-{
-   int out = pix*getDim().width/TOF_WIDTH;
-   return (out<=0)?1:out;
-}
-
-
-/*!
- *===========================================================================================
- *  @brief   Try recognize gesture of qualified contour
- *===========================================================================================
- */
-bool Jive::findGesture(vector< vector<cv::Point> > &contours, enum Gesture &gesture, int *values)
-{
-   bool found = false;
-   int numHands = 0;
-   int handContour[2];
-
-   gesture = GESTURE_NULL;
+   _palmCenter[_leftHand] = cv::Point(0,0);
+   _palmCenter[_rightHand] = cv::Point(0,0);
+   _palmRadius[_leftHand] = 0;
+   _palmRadius[_rightHand] = 0;
 
    // Find number of qualified hands and remember their contour index
+   _numHands = 0;
    for (int i=0; i<contours.size(); i++) 
    {
-      if (cv::contourArea(contours[i]) > adjPix((int)_minContourSize)) 
+      if (cv::contourArea(contours[i]) > (int)_minContourSize) 
       {
-         if (numHands < 2)
-            handContour[numHands] = i;
-         numHands++;
+         if (_numHands < 2)
+            _handContour[_numHands] = i;
+         _numHands++;
       }
    }
 
-
-   // Only process for 1 or 2 hands
-   if (numHands <= MAX_HANDS) 
+   // Find palms
+   if (_numHands > 0 && _numHands <= 2) 
    {
-      for (int i=0; i < numHands; i++) 
+      for (int i=0; i < _numHands; i++) 
       {
          // Find convex hull and defects
          vector<int> hulls, defects;
          vector<Vec4i> convDef;
-         vector<cv::Point> contour = contours[handContour[i]];
-         convexHull(Mat(contour), hulls, false); 
-         convexityDefects(contour, hulls, convDef);
-         for (int k=1; k<convDef.size(); k++) 
-         {  
-            if (convDef[k][3] > adjPix((int)_minConvDefDepth)*256) 
-            {
-               int ind = convDef[k][2];
-               defects.push_back(ind);
-            } // if (convDef[k][3]) 
-         } // for (k) 
+         vector<cv::Point> contour = contours[_handContour[i]];
 
-         // Remove 'border' hulls
-         vector<int> newhulls;
-         for (int i=0; i< hulls.size(); i++) 
-         {
-            cv::Point p = contour[hulls[i]];
-            if (p.y > _Ymin+5 && p.y < _Ymax-5 && p.x < _Xmax-2 && p.x > _Xmin+2  ) 
-               newhulls.push_back(hulls[i]);
-         }
-         hulls = newhulls;
+         // Find contour center
+         cv::Point contourCenter;
+         findContourCenter(contour, contourCenter, _palmRadius[i]);
  
-         // Find palms
-         findPalmCenter(contour, _palmCenter[i], _palmRadius[i]);
+         // Find hand tip
+         int tip_k = 0;
+         int maxY = 0;
+         for (int k=0; k<contour.size(); k++)
+         { 
+            if (contour[k].y > maxY) 
+            {
+               maxY = contour[k].y;
+               tip_k = k;
+            }
+         }
 
-         // Find kCurv
-         vector<int> tips_temp;
-         findKCurv(contour, hulls, adjPix(5), adjPix(8), _maxAngle, tips_temp);
-    
-         // Find tips
-         int rc = findTips(contour, tips_temp, _tips[i], (float)adjPix((int)_separation));
+         // Find palm Center
+         cv::Point tip = contour[tip_k];
+         _palmCenter[i] = cv::Point((tip.x+contourCenter.x)/2, (tip.y+contourCenter.y)/2);
+         _handTip[i] = cv::Point((tip.x+_palmCenter[i].x)/2,(tip.y+_palmCenter[i].y)/2);
 
-         // Draw hand
-         cv::drawContours(_drawing, contours, handContour[i], Scalar(0, 0, 255), 0, 1, vector<Vec4i>(), 0, cv::Point() ); 
-
-
-         // Draw tips
-         for (int k=0; k<_tips[i].size(); k++) 
-            cv::circle(_drawing, contour[_tips[i][k]], 4, Scalar(255,255,0), 1 );
-
-#if 1
-         // Draw defects
-         for (int k=0; k<defects.size(); k++) 
-	         cv::circle(_drawing, contour[defects[k]], 4, Scalar(255,0,255), 1 );
-#endif
-         // Draw palm
-         cv::circle(_drawing, _palmCenter[i], (int)_palmRadius[i], Scalar(0,255,0), 1);
-     
       } // for (i)
 
-      
+      if (_numHands == 2 && _palmCenter[_leftHand].x < _palmCenter[_rightHand].x)
+      {
+         int temp = _leftHand;
+         _rightHand = _leftHand;
+         _leftHand = temp;
+      }
+   
    } // if (numHands) 
 
    return found;
 }
+
 
 
 /*!
@@ -628,7 +435,6 @@ bool Jive::findGesture(vector< vector<cv::Point> > &contours, enum Gesture &gest
  */
 void Jive::update(Frame *frame)
 {
-   vector< vector<cv::Point> > contours;
    vector<Vec4i> hierarchy;
    RNG rng(12345);
 
@@ -650,72 +456,26 @@ void Jive::update(Frame *frame)
 
          // Crop unused sections
          cropMaps(_bMap, (int)_Xmin, (int)_Xmax, (int)_Ymin, (int)_Ymax);
-
-         cv::line(_drawing, cv::Point(_Xmin, _Ymin), cv::Point(_Xmin, _Ymax), Scalar(0,0,255), 1);
-         cv::line(_drawing, cv::Point(_Xmin, _Ymax), cv::Point(_Xmax, _Ymax), Scalar(0,0,255), 1);
-         cv::line(_drawing, cv::Point(_Xmax, _Ymax), cv::Point(_Xmax, _Ymin), Scalar(0,0,255), 1);
-         cv::line(_drawing, cv::Point(_Xmax, _Ymin), cv::Point(_Xmin, _Ymin), Scalar(0,0,255), 1);
-
          Mat canny = _bMap.clone();
 
          // Find all contours
-         findContours(canny, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0,0));
+         findContours(canny, _contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0,0));
 
-         // Find gestures
-         enum Gesture gesture;
-         int values[2];
-         findGesture(contours, gesture, values);
-#if 0
-         // Dispatch gesture actions
-         switch (gesture) 
+         // Find hand tips
+         findHandTips(_contours);
+
+         // Move mouse
+         if (_numHands > 0)
          {
-            // One-hand
-            case GESTURE_1H1F:
-               cout << "1H1F" << " POS:" << value[0] << endl;
-               break;
-
-            case GESTURE_1H2F:
-               cout << "1H2F" << " POS:" << value[0] << endl;
-               break;
-
-            case GESTURE_1H3F:
-               cout << "1H3F" << " POS:" << value[0] << endl;
-               break;
-
-            case GESTURE_1H4F:
-               cout << "1H4F" << " POS:" << value[0] << endl;
-               break;
-
-            case GESTURE_1H5F:
-               cout << "1H5F" << " POS:" << value[0] << endl;
-               break;
-
-            // Two-hands
-            case GESTURE_2H1F:
-               cout << "2H1F" << " POS:" << value[0] << " ROT:" << value[1] << endl;
-               break;
-
-            case GESTURE_2H2F:
-               cout << "2H2F" << " POS:" << value[0] << " ROT:" << value[1] << endl;
-               break;
-
-            case GESTURE_2H3F:
-               cout << "2H3F" << " POS:" << value[0] << " ROT:" << value[1] << endl;
-               break;
-
-            case GESTURE_2H4F:
-               cout << "2H4F" << " POS:" << value[0] << " ROT:" << value[1] << endl;
-               break;
-
-            case GESTURE_2H5F:
-               cout << "2H5F" << " POS:" << value[0] << " ROT:" << value[1] << endl;
-               break;
-
-            // Default
-            default:
-               break;
-         } // switch()
-#endif
+            int screen_width, screen_height;
+            int sensor_width, sensor_height;
+            int scaled_x, scaled_y;
+         
+            mouse.getDim(screen_width, screen_height);
+            scaled_x = screen_width - screen_width * (_handTip[0].x-(int)_Xmin) / (int)(_Xmax-_Xmin);
+            scaled_y = screen_height - screen_height * (_handTip[0].y-(int)_Ymin) / (int)(_Ymax-_Ymin);
+            mouse.moveTo(scaled_x-(int)_Xcur, scaled_y-(int)_Ycur);
+         }
 
       } // if (_bkgUpdated)
 
