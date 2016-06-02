@@ -28,8 +28,8 @@ int main(int argc, char *argv[])
    int key;
    bool done = false;
    Mat bImg;
-   Jive jive(80, 60);
-   //Jive jive(320, 240);
+   //Jive jive(80, 60);
+   Jive jive(320, 240);
    
    jive.start();
    namedWindow( "Binary", WINDOW_NORMAL );
