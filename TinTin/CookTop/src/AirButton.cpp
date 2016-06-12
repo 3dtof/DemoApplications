@@ -1,3 +1,4 @@
+#include "CookTop.h"
 #include "AirButton.h"
 
 #define IMG_GAP      4
@@ -49,23 +50,32 @@ bool AirButton::loadImage(std::string path)
 
 void AirButton::update()
 {
-   ofPoint m = ofPoint(ofGetAppPtr()->mouseX-ofGetWidth()/2,ofGetHeight()/2-ofGetAppPtr()->mouseY);
-   _bSelected = isOver(m);
 }
 
 
 void AirButton::draw(ofPoint orig)
 {   
+   ofPoint m = ofPoint(ofGetAppPtr()->mouseX-ofGetWidth()/2,ofGetHeight()/2-ofGetAppPtr()->mouseY);
+
    _orig = orig;
 
    ofSetColor(255,255,255);
    _img.draw(ofPoint(_orig.x+IMG_GAP, _orig.y+IMG_GAP));
 
-   if (_bSelected)
+   if (isFocused(m))
    {
-      ofSetColor(0, 0, 255);
+      if (isSelected())
+         ofSetColor(0,255,0);
+      else
+         ofSetColor(0,0,255);
       ofNoFill();
-      ofDrawRectangle(_orig, _width, _height);
+      ofDrawRectangle(_orig, _width, _height); 
+   }
+   else if (isSelected())
+   {
+      ofSetColor(0,255,0);
+      ofNoFill();
+      ofDrawRectangle(_orig, _width, _height); 
    }
 }
 
@@ -120,7 +130,7 @@ void AirButton::resize(int w, int h)
 }
 
 
-bool AirButton::isOver(ofPoint m)
+bool AirButton::isFocused(ofPoint m)
 {
    return (m.x > _orig.x && m.x < _orig.x + _width) 
        && (m.y > _orig.y && m.y < _orig.y + _height);
@@ -129,12 +139,14 @@ bool AirButton::isOver(ofPoint m)
 
 void AirButton::mousePressed(int x, int y, int button)
 {
-   _bSelected = true;
+   if (button == MOUSE_BUTTON_LEFT)
+      _bSelected = true;
 }
 
 
 void AirButton::mouseReleased(int x, int y, int button)
 {
+   _bSelected = false;
 }
 
 

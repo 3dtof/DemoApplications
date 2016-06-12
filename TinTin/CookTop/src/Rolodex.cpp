@@ -23,7 +23,7 @@ Rolodex::~Rolodex()
 }
 
 
-bool Rolodex::isOver(ofPoint p)
+bool Rolodex::isFocused(ofPoint p)
 {
    return (p.x > _orig.x && p.x < _orig.x + _width)
           && (p.y > _orig.y && p.y < _orig.y + _height);
@@ -47,6 +47,16 @@ void Rolodex::draw(ofPoint orig)
 
    if (_cards.size() > 0)  // have at least one card
    {
+      // Backup card
+      int bk = getPrevCardIndex(k);
+      ofSetColor(256,256,256);
+      ofPushMatrix();
+      ofTranslate(orig.x+_width/2, orig.y+_height/2);
+      _cards[bk].setAnchorPoint(_cards[k].getWidth()/2, 0);
+      ofRotateX(-1);
+      _cards[bk].draw(0,0);
+      ofPopMatrix();
+
       // Top card
       ofSetColor(256,256,256);
       ofPushMatrix();
@@ -88,6 +98,13 @@ void Rolodex::draw(ofPoint orig)
          } // 3+ cards
       } // 2+ cards
    } // 1+ cards
+
+   // Draw horizontal line
+   ofSetColor(0,0,0);
+   ofPushMatrix();
+   ofTranslate(orig.x, orig.y+_height/2, 2);
+   ofLine(0, 0, _width, 0);
+   ofPopMatrix();
 
    ofSetColor(255,255,255);
 }
@@ -174,26 +191,22 @@ void Rolodex::mouseMoved(int x, int y)
 //--------------------------------------------------------------
 void Rolodex::mouseDragged(int x, int y, int button)
 {
-//   if (_bAnimate)
+   int delta = y - _dragStart;
+   if (_dragStart > _orig.y + _height/2)   // top card
    {
-      int delta = y - _dragStart;
-
-      if (_dragStart > _orig.y + _height/2)   // top card
-      {
-         _angleTop = -delta;
-         if (_angleTop > BOTTOM_CARD_ANGLE) 
-            _angleTop = BOTTOM_CARD_ANGLE-1;
-         else if (_angleTop < 0)
-            _angleTop = 0;
-      }
-      else                                   // bottom card
-      {
-         _angleBottom = BOTTOM_CARD_ANGLE - delta;
-         if (_angleBottom <= 0) 
-            _angleBottom = 1;
-         else if (_angleBottom > BOTTOM_CARD_ANGLE)
-            _angleBottom = BOTTOM_CARD_ANGLE;
-      }
+      _angleTop = -delta;
+      if (_angleTop > BOTTOM_CARD_ANGLE) 
+         _angleTop = BOTTOM_CARD_ANGLE-1;
+      else if (_angleTop < 0)
+         _angleTop = 0;
+   }
+   else                                   // bottom card
+   {
+      _angleBottom = BOTTOM_CARD_ANGLE - delta;
+      if (_angleBottom <= 0) 
+         _angleBottom = 1;
+      else if (_angleBottom > BOTTOM_CARD_ANGLE)
+         _angleBottom = BOTTOM_CARD_ANGLE;
    }
 }
 

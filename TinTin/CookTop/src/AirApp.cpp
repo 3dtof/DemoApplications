@@ -1,3 +1,4 @@
+#include "CookTop.h"
 #include "AirApp.h"
 
 
@@ -36,8 +37,9 @@ bool AirApp::isSelected()
 }
 
 
-bool AirApp::isOver(ofPoint p)
+bool AirApp::isFocused(ofPoint p)
 {
+   return false;
 }
 
 

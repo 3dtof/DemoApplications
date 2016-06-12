@@ -1,3 +1,4 @@
+#include "CookTop.h"
 #include "HomeScreen.h"
 
 #define APPS_PER_ROW       3
@@ -16,7 +17,7 @@ HomeScreen::~HomeScreen()
 {
 }
 
-bool HomeScreen::isOver(ofPoint p)
+bool HomeScreen::isFocused(ofPoint p)
 {
    return (p.x > _orig.x && p.x < _orig.x + _width)
           && (p.y > _orig.y && p.y < _orig.y + _height);
@@ -44,12 +45,6 @@ int HomeScreen::getAppSelected()
 
 void HomeScreen::update()
 {
-   ofPoint m = ofPoint(ofGetAppPtr()->mouseX-ofGetWidth()/2,ofGetHeight()/2-ofGetAppPtr()->mouseY);
-   if (isOver(m))
-      select();
-   else
-      deselect();
-   
    // Update appButtons
    for (int i=0; i<_appButtons.size(); i++)
    {
@@ -61,6 +56,7 @@ void HomeScreen::update()
 
 void HomeScreen::draw(ofPoint orig)
 {
+   ofPoint m = ofPoint(ofGetAppPtr()->mouseX-ofGetWidth()/2,ofGetHeight()/2-ofGetAppPtr()->mouseY);
    _orig = orig;
    for (int i=1; i<_appButtons.size(); i++)  // skip i=0
    {
@@ -77,7 +73,7 @@ void HomeScreen::draw(ofPoint orig)
 //--------------------------------------------------------------
 void HomeScreen::keyPressed(int key)
 {
-
+   
 }
 
 //--------------------------------------------------------------
@@ -101,12 +97,14 @@ void HomeScreen::mouseDragged(int x, int y, int button)
 //--------------------------------------------------------------
 void HomeScreen::mousePressed(int x, int y, int button)
 {
+   select();
    for (int i=0; i<_appButtons.size(); i++)
    {
       AirButton *b = _appButtons[i];
-      if (b && b->isOver(ofPoint(x,y)))
+      if (b && b->isFocused(ofPoint(x,y)))
       {
-         b->select();
+         //cout << b->getName() << " Pressed" << endl;
+         b->mousePressed(x, y, button);
          break;
       }
    }
@@ -120,10 +118,12 @@ void HomeScreen::mouseReleased(int x, int y, int button)
       AirButton *b = _appButtons[i];
       if (b && b->isSelected())
       {
+         b->mouseReleased(x, y, button);
          _appSelected = i;
          break;
       }
    }
+   deselect();
 }
 
 

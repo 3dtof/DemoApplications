@@ -12,7 +12,7 @@ public:
    ~AirApp();
    virtual void update();
    virtual void draw();
-   virtual bool isOver(ofPoint p);
+   virtual bool isFocused(ofPoint p);
    void select();
    void deselect();
    bool isSelected();

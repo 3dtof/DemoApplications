@@ -1,3 +1,4 @@
+#include "CookTop.h"
 #include "AirPanel.h"
 
 #define BORDER_WIDTH    10
@@ -70,9 +71,7 @@ AirPanel::~AirPanel()
 
 void AirPanel::update()
 {
-   ofPoint m = ofPoint(ofGetAppPtr()->mouseX-ofGetWidth()/2,ofGetHeight()/2-ofGetAppPtr()->mouseY);
-   _bSelected = isOver(m);
-
+   // App updates
    for (int i=0; i<_apps.size(); i++)
    {
       AirApp *app = _apps[i];
@@ -88,6 +87,7 @@ void AirPanel::update()
       }
    }
 
+   // Button updates
    for (int i=0; i<_buttons.size(); i++)
       _buttons[i]->update();
 }
@@ -95,11 +95,10 @@ void AirPanel::update()
 
 void AirPanel::draw()
 {
+   ofPoint m = ofPoint(ofGetAppPtr()->mouseX-ofGetWidth()/2,ofGetHeight()/2-ofGetAppPtr()->mouseY);
+
    // Draw panel border
-   if (_bSelected)
-      ofSetColor(0,0,255);
-   else
-      ofSetColor(255, 255, 255);
+   ofSetColor(255, 255, 255);
    ofNoFill();
    ofDrawRectRounded(ofPoint(_orig.x, _orig.y+2*BORDER_WIDTH+BUTTON_HEIGHT), 
             _width, _height-2*BORDER_WIDTH-BUTTON_HEIGHT, BORDER_WIDTH);
@@ -142,7 +141,7 @@ bool AirPanel::isSelected()
 }
 
 
-bool AirPanel::isOver(ofPoint p)
+bool AirPanel::isFocused(ofPoint p)
 {
    return (p.x > _orig.x && p.x < _orig.x + _width)
           && (p.y > _orig.y && p.y < _orig.y + _height);
@@ -252,39 +251,11 @@ int AirPanel::getHeight()
 
 void AirPanel::keyPressed(int key)
 {
-   // Passing key event unto focused app
-   AirApp *app = _apps[_focus];
-   if (app->getName() == "HomeScreen")
-   {
-      HomeScreen *h = (HomeScreen *)app;
-      if (h->isSelected())
-         h->keyPressed(key);
-   }
-   else if (app->getName() == "Rolodex")
-   {
-      Rolodex *r = (Rolodex *)app;
-      if (r->isSelected())
-         r->keyPressed(key);
-   }
 }
 
 
 void AirPanel::keyReleased(int key)
 {
-   // Passing key event unto focused app
-   AirApp *app = _apps[_focus];
-   if (app->getName() == "HomeScreen")
-   {
-      HomeScreen *h = (HomeScreen *)app;
-      if (h->isSelected())
-         h->keyReleased(key);
-   }
-   else if (app->getName() == "Rolodex")
-   {
-      Rolodex *r = (Rolodex *)app;
-      if (r->isSelected())
-         r->keyReleased(key);
-   }
 }
 
 
@@ -292,25 +263,37 @@ void AirPanel::keyReleased(int key)
 void AirPanel::mouseMoved(int x, int y)
 {
    AirApp *app = _apps[_focus];
-   if (app->getName() == "Rolodex")
+   if (app->getName() == "HomeScreen")
+   {
+      HomeScreen *hs = (HomeScreen *)app;
+      if (hs->isSelected())
+         hs->mouseMoved(x, y);
+   }
+   else if (app->getName() == "Rolodex")
    {
       Rolodex *r = (Rolodex *)app;
-      if (r->isSelected() && isOver(ofPoint(x,y)))
+      if (r->isSelected())
          r->mouseMoved(x, y);
    }
 }
 
 
-
 void AirPanel::mouseDragged(int x, int y, int button)
 {
    AirApp *app = _apps[_focus];
-   if (app->getName() == "Rolodex")
+   if (app->getName() == "HomeScreen")
+   {
+      HomeScreen *hs = (HomeScreen *)app;
+      if (hs->isSelected())
+         hs->mouseDragged(x, y, button);
+   }
+   else if (app->getName() == "Rolodex")
    {
       Rolodex *r = (Rolodex *)app;
       if (r->isSelected())
          r->mouseDragged(x, y, button);
    }
+
 }
 
 
@@ -320,38 +303,39 @@ void AirPanel::mousePressed(int x, int y, int button)
    if (app->getName() == "HomeScreen")
    {
       HomeScreen *hs = (HomeScreen *)app;
-      if (hs->isOver(ofPoint(x,y)))
+      if (hs->isFocused(ofPoint(x,y)))
          hs->mousePressed(x, y, button);
    }
    else if (app->getName() == "Rolodex")
    {
       Rolodex *r = (Rolodex *)app;
-      if (r->isOver(ofPoint(x,y)))
+      if (r->isFocused(ofPoint(x,y)))
          r->mousePressed(x, y, button);
    }
 
-   if (_homeButton && _homeButton->isOver(ofPoint(x,y)))
+   if (_homeButton && _homeButton->isFocused(ofPoint(x,y)))
    {
-      _homeButton->select();
+      _homeButton->mousePressed(x, y, button);
    }
-   else if (_backButton && _backButton->isOver(ofPoint(x,y)))
+   else if (_backButton && _backButton->isFocused(ofPoint(x,y)))
    {
-      _backButton->select();
+      _backButton->mousePressed(x, y, button);
    }
-   else if (_selectButton && _selectButton->isOver(ofPoint(x,y)))
+   else if (_selectButton && _selectButton->isFocused(ofPoint(x,y)))
    {
-      _selectButton->select();
+      _selectButton->mousePressed(x, y, button);
    }
 }
 
 
 void AirPanel::mouseReleased(int x, int y, int button)
 {
+   // Process Apps
    AirApp *app = _apps[_focus];
    if (app->getName() == "HomeScreen")
    {
       HomeScreen *hs = (HomeScreen *)app;
-      if (hs->isSelected() && hs->isOver(ofPoint(x,y)))
+      if (hs->isSelected())
       {
          hs->mouseReleased(x, y, button);
          _focus = hs->getAppSelected();
@@ -360,19 +344,26 @@ void AirPanel::mouseReleased(int x, int y, int button)
    else if (app->getName() == "Rolodex")
    {
       Rolodex *r = (Rolodex *)app;
-      if (r->isSelected() && r->isOver(ofPoint(x,y)))
+      if (r->isSelected())
+      {
          r->mouseReleased(x, y, button);
+      }
    }
 
+   // Process Buttons
    if (_homeButton && _homeButton->isSelected())
    {
+      _homeButton->mouseReleased(x, y, button);
       _focus = 0;
    }
    else if (_backButton && _backButton->isSelected())
    {
+      _backButton->mouseReleased(x, y, button);
    }
    else if (_selectButton && _selectButton->isSelected())
    {
+      _selectButton->mouseReleased(x, y, button);
    }
 }
+
 

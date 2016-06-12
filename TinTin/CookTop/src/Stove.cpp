@@ -1,5 +1,6 @@
 /*!
  */
+#include "CookTop.h"
 #include "Stove.h"
 
 Stove::Stove()
@@ -48,7 +49,7 @@ Stove::~Stove()
 void Stove::update()
 {
    ofPoint m = ofPoint(ofGetAppPtr()->mouseX-ofGetWidth()/2,ofGetHeight()/2-ofGetAppPtr()->mouseY);
-   _bSelected = isOver(m);
+   _bSelected = isFocused(m);
 
    // Update burners
    for (int i=0; i<_burners.size(); i++)
@@ -62,10 +63,7 @@ void Stove::update()
 void Stove::draw()
 {
    // Draw stove border
-   if (_bSelected)
-      ofSetColor(0,0,255);
-   else
-      ofSetColor(255,255,255);
+   ofSetColor(255,255,255);
    ofNoFill();
    ofDrawRectRounded(_orig, _width, _height, 10);
 
@@ -76,7 +74,7 @@ void Stove::draw()
 
 
 
-bool Stove::isOver(ofPoint p)
+bool Stove::isFocused(ofPoint p)
 {
    return (p.x > _orig.x && p.x < _orig.x + _width)
           && (p.y > _orig.y && p.y < _orig.y + _height);
@@ -153,22 +151,12 @@ bool Stove::isSelected()
 
 void Stove::keyPressed(int key)
 {
-   for (int i=0; i<size(); i++)
-   {
-      Burner *b = getBurner(i);
-      if (b) b->keyPressed(key);
-   }
 }
 
 
 
 void Stove::keyReleased(int key)
 {
-   for (int i=0; i<size(); i++)
-   {
-      Burner *b = getBurner(i);
-      if (b) b->keyReleased(key);
-   }
 }
 
 
@@ -178,7 +166,8 @@ void Stove::mouseMoved(int x, int y)
    for (int i=0; i<size(); i++)
    {
       Burner *b = getBurner(i);
-      if (b) b->mouseMoved(x, y);
+      if (b && b->isSelected()) 
+         b->mouseMoved(x, y);
    }
 }
 
@@ -189,7 +178,8 @@ void Stove::mouseDragged(int x, int y, int button)
    for (int i=0; i<size(); i++)
    {
       Burner *b = getBurner(i);
-      if (b) b->mouseDragged(x, y, button);
+      if (b && b->isSelected()) 
+         b->mouseDragged(x, y, button);
    }
 }
 
@@ -199,7 +189,8 @@ void Stove::mousePressed(int x, int y, int button)
    for (int i=0; i<size(); i++)
    {
       Burner *b = getBurner(i);
-      if (b) b->mousePressed(x, y, button);
+      if (b && b->isFocused(ofPoint(x,y))) 
+         b->mousePressed(x, y, button);
    }
 }
 
@@ -209,7 +200,8 @@ void Stove::mouseReleased(int x, int y, int button)
    for (int i=0; i<size(); i++)
    {
       Burner *b = getBurner(i);
-      if (b) b->mouseReleased(x, y, button);
+      if (b && b->isSelected()) 
+         b->mouseReleased(x, y, button);
    }
 }
 

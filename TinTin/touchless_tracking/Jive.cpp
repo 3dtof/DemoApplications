@@ -56,6 +56,7 @@ Jive::Jive(int w, int h) : TOFApp(w, h)
    _Ymax = 171;
    _Xcur = 0;
    _Ycur = 0;
+   _bButtonDown = false;
    
 
    // Setup parameter map
@@ -468,13 +469,26 @@ void Jive::update(Frame *frame)
          if (_numHands > 0)
          {
             int screen_width, screen_height;
-            int sensor_width, sensor_height;
+            int sensor_width, sensor_hqeight;
             int scaled_x, scaled_y;
          
             mouse.getDim(screen_width, screen_height);
             scaled_x = screen_width - screen_width * (_handTip[0].x-(int)_Xmin) / (int)(_Xmax-_Xmin);
             scaled_y = screen_height - screen_height * (_handTip[0].y-(int)_Ymin) / (int)(_Ymax-_Ymin);
             mouse.moveTo(scaled_x-(int)_Xcur, scaled_y-(int)_Ycur);
+
+            if ( (_zBkgMap.at<float>(_handTip[0]) - _zMap.at<float>(_handTip[0])) < _zTrigger)
+            {
+               mouse.buttonDown(Button1);
+               _bButtonDown = true;
+               cout << "buttonDown" << endl;
+            }
+            else if (_bButtonDown && (_zBkgMap.at<float>(_handTip[0])-_zMap.at<float>(_handTip[0])) > _zTrigger+0.01)
+            {
+               mouse.buttonUp(Button1);
+               _bButtonDown = false;
+               cout << "buttonUp" << endl;
+            }
          }
 
       } // if (_bkgUpdated)

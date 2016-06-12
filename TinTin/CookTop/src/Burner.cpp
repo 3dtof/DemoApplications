@@ -1,9 +1,11 @@
 /*!
  */
-#include "ofMain.h"
+#include "CookTop.h"
 #include "Burner.h"
 
 #define MOUSE_BUTTON_RIGHT    2
+#define MOUSE_BUTTON_MIDDLE   1
+#define MOUSE_BUTTON_LEFT     0
 
 /*!
  * @brief   Constructor
@@ -11,8 +13,8 @@
 Burner::Burner(ofPoint orig, int rings)
 {
    _heat = 0.0;
-   _onRate = 0.3;
-   _offRate = 0.5;
+   _onRate = 5.0;
+   _offRate = 5.0;
    _red = ofColor(0,0,0);
    _orig = orig;
    _stroke = 10;
@@ -37,18 +39,19 @@ Burner::~Burner()
  */
 void Burner::update()
 {
-   ofPoint m = ofPoint(ofGetAppPtr()->mouseX-ofGetWidth()/2,ofGetHeight()/2-ofGetAppPtr()->mouseY);
-   _bSelected = isOver(m);
-
    if (_on)
    {
-      if ((int)_heat < 255)
+      if ((int)_heat+_onRate <= 255)
          _heat += _onRate;
+      else 
+	 _heat = 255;
    }
    else 
    {
-      if ((int)_heat > 0)
+      if ((int)_heat-_offRate >= 0)
          _heat -= _offRate;
+      else
+         _heat = 0;
    }
    _red.r = (int)_heat;
 
@@ -60,6 +63,8 @@ void Burner::update()
  */
 void Burner::draw()
 {
+   ofPoint m = ofPoint(ofGetAppPtr()->mouseX-ofGetWidth()/2,ofGetHeight()/2-ofGetAppPtr()->mouseY);
+
    // Draw heating elements
    ofSetCircleResolution(180);
    ofSetLineWidth(_stroke);
@@ -70,8 +75,13 @@ void Burner::draw()
 
    // Draw stove border
    ofSetLineWidth(2);
-   if (_bSelected)
-      ofSetColor(ofColor(0,0,255));
+   if (isFocused(m))
+   {
+      if (isSelected())
+         ofSetColor(ofColor(0,255,0));
+      else
+         ofSetColor(ofColor(0,0,255));
+   }
    else
       ofSetColor(ofColor(255,255,255));
    ofDrawCircle(_orig, _radius);
@@ -81,7 +91,7 @@ void Burner::draw()
 /*!
  * @brief   Test if a point is in stove's radius
  */
-bool Burner::isOver(ofPoint p)
+bool Burner::isFocused(ofPoint p)
 {
    return _orig.distance(p) < _radius;
 }
@@ -167,19 +177,20 @@ void Burner::mouseDragged(int x, int y, int button)
 
 void Burner::mousePressed(int x, int y, int button)
 {
-   _bSelected = (button == MOUSE_BUTTON_RIGHT);
+   _bSelected = (button == MOUSE_BUTTON_LEFT);
 }
 
 
 void Burner::mouseReleased(int x, int y, int button)
 {
-   if (isSelected() && button == MOUSE_BUTTON_RIGHT)
+   if (button == MOUSE_BUTTON_LEFT)
    {
       if (isOn())
          off();
       else
          on();
    }
+   deselect();
 }
 
 

@@ -21,7 +21,7 @@ public:
    void select();
    void deselect();
    bool isSelected();
-   bool isOver(ofPoint p);
+   bool isFocused(ofPoint p);
 
    void setOrig(ofPoint orig);
    int size();

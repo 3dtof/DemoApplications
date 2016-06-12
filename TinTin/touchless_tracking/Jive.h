@@ -45,6 +45,7 @@ private:
    Mat _bMap, _drawing;
 
    bool _bkgUpdated;
+   bool _bButtonDown;
    XYZIPointCloudFrame _prevFrame;
    float _zTrigger;
    float _zHighThresh;

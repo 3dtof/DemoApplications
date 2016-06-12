@@ -11,7 +11,7 @@ public:
    ~HomeScreen();
    void update();
    void draw(ofPoint p);
-   bool isOver(ofPoint p);
+   bool isFocused(ofPoint p);
 
    std::string getName();
    void setName(std::string name);

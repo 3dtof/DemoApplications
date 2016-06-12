@@ -31,7 +31,7 @@ public:
    int getHeight();
    void resize(int w, int h);
 
-   bool isOver(ofPoint p);
+   bool isFocused(ofPoint p);
 
 	void mousePressed(int x, int y, int button);
 	void mouseReleased(int x, int y, int button);

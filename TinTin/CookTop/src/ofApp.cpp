@@ -44,8 +44,6 @@ void ofApp::update()
 //--------------------------------------------------------------
 void ofApp::draw()
 {	
-   ofPoint m = ofPoint(mouseX-ofGetWidth()/2,ofGetHeight()/2-mouseY);
-
    _cam.begin();
    _cam.enableOrtho();
    ofRotateY(5);
@@ -56,30 +54,9 @@ void ofApp::draw()
    // Draw Stove
    _stove.draw();
    
-   for (int i=0; i<_stove.size(); i++)
-   {
-      Burner *b = _stove.getBurner(i);
-      if (b)
-      {
-         if (b->isOver(m))
-            b->select();
-         else
-            b->deselect();
-      }
-   }
-
    // Draw panel
    _panel.draw();
-
-   for (int i=0; i<_panel.numButtons(); i++)
-   {
-      AirButton *button = _panel.getButton(i);
-      if (button->isOver(m))
-         button->select();
-      else
-         button->deselect();
-   }
-         
+       
    ofPopMatrix();
    _cam.end();
 
@@ -102,28 +79,11 @@ void ofApp::keyPressed(int key)
       default:
          break;
    }
-
-   if (_panel.isSelected())
-   {
-      _panel.keyPressed(key);
-   }
-   else if (_stove.isSelected())
-   {
-      _stove.keyPressed(key);
-   }
 }
 
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key)
 {
-   if (_panel.isSelected())
-   {
-      _panel.keyReleased(key);
-   }
-   else if (_stove.isSelected())
-   {
-      _stove.keyReleased(key);
-   }
 }
 
 //--------------------------------------------------------------
@@ -131,11 +91,11 @@ void ofApp::mouseMoved(int x, int y)
 {
    ofPoint m = ofPoint(x-ofGetWidth()/2,ofGetHeight()/2-y);
 
-   if (_panel.isSelected())
+   if (_panel.isFocused(m))
    {
       _panel.mouseMoved(m.x, m.y);
    }
-   else if (_stove.isSelected())
+   else if (_stove.isFocused(m))
    {
       _stove.mouseMoved(m.x, m.y);
    }
@@ -146,11 +106,11 @@ void ofApp::mouseDragged(int x, int y, int button)
 {
    ofPoint m = ofPoint(x-ofGetWidth()/2,ofGetHeight()/2-y);
 
-   if (_panel.isSelected())
+   if (_panel.isFocused(m))
    {
       _panel.mouseDragged(m.x, m.y, button);
    }
-   else if (_stove.isSelected())
+   else if (_stove.isFocused(m))
    {
       _stove.mouseDragged(m.x, m.y, button);
    }
@@ -161,11 +121,11 @@ void ofApp::mousePressed(int x, int y, int button)
 {
    ofPoint m = ofPoint(x-ofGetWidth()/2,ofGetHeight()/2-y);
 
-   if (_panel.isOver(m))
+   if (_panel.isFocused(m))
    {
       _panel.mousePressed(m.x, m.y, button);
    }
-   else if (_stove.isOver(m))
+   else if (_stove.isFocused(m))
    {
       _stove.mousePressed(m.x, m.y, button);
    }
@@ -176,11 +136,11 @@ void ofApp::mouseReleased(int x, int y, int button)
 {
    ofPoint m = ofPoint(x-ofGetWidth()/2,ofGetHeight()/2-y);
 
-   if (_panel.isSelected() && _panel.isOver(m))
+   if (_panel.isFocused(m))
    {
       _panel.mouseReleased(m.x, m.y, button);
    }
-   else if (_stove.isSelected() && _stove.isOver(m))
+   else if (_stove.isFocused(m))
    {
       _stove.mouseReleased(m.x, m.y, button);
    }

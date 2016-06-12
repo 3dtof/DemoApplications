@@ -10,7 +10,7 @@ public:
    ~Rolodex();
    void update();
    void draw(ofPoint orig);
-   bool isOver(ofPoint p);
+   bool isFocused(ofPoint p);
 
    void addCard(ofImage img);
    void addCard(std::string filename);

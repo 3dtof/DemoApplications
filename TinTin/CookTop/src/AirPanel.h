@@ -21,7 +21,7 @@ public:
    void select();
    void deselect();
    bool isSelected();
-   bool isOver(ofPoint p);
+   bool isFocused(ofPoint p);
 
    std::string getName();
    void setName(std::string name);

@@ -23,7 +23,7 @@ public:
    void on();
    void off();
    float getRadius();
-   bool isOver(ofPoint p);
+   bool isFocused(ofPoint p);
 
 
 	void keyPressed(int key);
