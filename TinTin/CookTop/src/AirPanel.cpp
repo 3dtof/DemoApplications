@@ -47,7 +47,6 @@ void AirPanel::init(std::string name, ofPoint orig, int w, int h)
    r->addCard("images/recipe1.png");
    r->addCard("images/recipe2.png");
    r->addCard("images/recipe3.png");
-#if 1
    r->addCard("images/recipe4.png");
    r->addCard("images/recipe5.png");
    r->addCard("images/recipe6.png");
@@ -56,7 +55,7 @@ void AirPanel::init(std::string name, ofPoint orig, int w, int h)
    r->addCard("images/recipe9.png");
    r->addCard("images/recipe10.png");
    r->addCard("images/recipe11.png");
-#endif
+
    addApp((AirApp *)r);
 
    // Populate HomeScreen with apps

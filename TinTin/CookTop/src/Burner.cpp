@@ -3,10 +3,6 @@
 #include "CookTop.h"
 #include "Burner.h"
 
-#define MOUSE_BUTTON_RIGHT    2
-#define MOUSE_BUTTON_MIDDLE   1
-#define MOUSE_BUTTON_LEFT     0
-
 /*!
  * @brief   Constructor
  */
