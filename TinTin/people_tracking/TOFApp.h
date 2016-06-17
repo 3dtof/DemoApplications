@@ -23,9 +23,6 @@
 #include <termio.h>
 #include <pthread.h>
 #include <opencv2/opencv.hpp>
-//#include <opencv2/highgui/highgui.hpp>
-//#include <opencv2/imgproc/imgproc.hpp>
-
 
 #ifndef __TOFAPP_H__
 #define __TOFAPP_H__
@@ -34,36 +31,43 @@ using namespace std;
 using namespace Voxel;
 using namespace cv;
 
-//#define TOF_WIDTH		320
-//#define TOF_HEIGHT		240
-#define TOF_WIDTH		80
-#define TOF_HEIGHT		60
+#define TOF_WIDTH		320
+#define TOF_HEIGHT		240
 
 class TOFApp
 {
 public:
+   // Initialization
    TOFApp();
    TOFApp(int w, int h);
    void Init(int w, int h);
-   void setDim(int w, int h);
+
+   // Accessor functions
+   bool setDim(int w, int h);
    DepthCameraPtr getDepthCamera();
    FrameSize &getDim();
-   void setLoopDelay(int delay);
-   int getLoopDelay();
-   int getIllumPower();
-   int getExposure();
-   void setIllumPower(int power);
-   void setExposure(int exposure);
+   bool setLoopDelay(int delay);
+   bool getLoopDelay(int &delay);
+   bool setIllumPower(int power);
+   bool getIllumPower(int &power);
+   bool setExposure(int exposure);
+   bool getExposure(int &exposure);  
+   DepthCamera::FrameType getFrameType();
+
    bool setProfile(Voxel::String name);
    Voxel::String getProfile();
-   DepthCamera::FrameType getFrameType();
+
+   // Run control
    bool isRunning();
    bool isConnected();
    void start();
    void stop();   
+
+   // Connection
    bool connect(DepthCamera::FrameType frmType=DepthCamera::FRAME_XYZI_POINT_CLOUD_FRAME);
    void disconnect();
-   void updateRegisters();
+
+   // Thread control
    void lock();
    void unlock();
    static void *eventLoop(void *app);

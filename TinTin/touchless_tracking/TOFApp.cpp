@@ -83,7 +83,7 @@ void TOFApp::Init(int w, int h)
    _isConnected = false;
    _dimen.width = w;
    _dimen.height = h;
-   _loopDelay = 66;
+   _loopDelay = 33;
    _profile = "MetrilusLongRange";
 }
 

@@ -5,6 +5,8 @@
 #include "AirButton.h"
 #include "Rolodex.h"
 #include "HomeScreen.h"
+#include "VideoPlayer.h"
+
 
 #ifndef __AIRPANEL_H__
 #define __AIRPANEL_H__

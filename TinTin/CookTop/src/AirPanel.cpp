@@ -55,10 +55,21 @@ void AirPanel::init(std::string name, ofPoint orig, int w, int h)
    r->addCard("images/recipe9.png");
    r->addCard("images/recipe10.png");
    r->addCard("images/recipe11.png");
-
    addApp((AirApp *)r);
 
-   // Populate HomeScreen with apps
+   // Setup and add VideoPlayer app
+   VideoPlayer *vid = new VideoPlayer(_width-2*BORDER_WIDTH, _height-4*BORDER_WIDTH-BUTTON_HEIGHT);
+   vid->loadIcon("images/videoplayer_icon.png");
+   if (vid->loadDirectory("videos"))
+   {
+      cout << "Loaded " << vid->getVideos().size() << " videos." << endl;
+      addApp((AirApp *)vid);
+   }
+   else
+      cout << "Video directory does not exist." << endl;
+
+
+   // Populate HomeScreen with all the apps
    hs->loadApps(_apps);
 }
 
@@ -73,7 +84,7 @@ void AirPanel::update()
    // App updates
    for (int i=0; i<_apps.size(); i++)
    {
-      AirApp *app = _apps[i];
+      AirApp *app = _apps[_focus];
       if (app->getName() == "HomeScreen")
       {
          HomeScreen *hs = (HomeScreen *)app;
@@ -83,6 +94,11 @@ void AirPanel::update()
       {
          Rolodex *r = (Rolodex *)app;
          r->update();
+      }
+      else if (app->getName() == "VideoPlayer")
+      {
+         VideoPlayer *v = (VideoPlayer *)app;
+         v->update();
       }
    }
 
@@ -114,6 +130,11 @@ void AirPanel::draw()
       Rolodex *r = (Rolodex *)app;
       r->draw(ofPoint(_orig.x+BORDER_WIDTH, _orig.y+2*BORDER_WIDTH+BUTTON_HEIGHT+BORDER_WIDTH));
    }  
+   else if (app->getName() == "VideoPlayer")
+   {
+      VideoPlayer *v = (VideoPlayer *)app;
+      v->draw(ofPoint(_orig.x+BORDER_WIDTH, _orig.y+2*BORDER_WIDTH+BUTTON_HEIGHT+BORDER_WIDTH));
+   } 
 
    // Draw buttons
    getButton("Back")->draw(ofPoint(_orig.x, _orig.y+BORDER_WIDTH));
@@ -274,6 +295,12 @@ void AirPanel::mouseMoved(int x, int y)
       if (r->isSelected())
          r->mouseMoved(x, y);
    }
+   else if (app->getName() == "VideoPlayer")
+   {
+      VideoPlayer *v = (VideoPlayer *)app;
+      if (v->isSelected())
+         v->mouseMoved(x, y);
+   }
 }
 
 
@@ -292,7 +319,12 @@ void AirPanel::mouseDragged(int x, int y, int button)
       if (r->isSelected())
          r->mouseDragged(x, y, button);
    }
-
+   else if (app->getName() == "VideoPlayer")
+   {
+      VideoPlayer *v = (VideoPlayer *)app;
+      if (v->isSelected())
+         v->mouseDragged(x, y, button);
+   }
 }
 
 
@@ -311,7 +343,14 @@ void AirPanel::mousePressed(int x, int y, int button)
       if (r->isFocused(ofPoint(x,y)))
          r->mousePressed(x, y, button);
    }
+   else if (app->getName() == "VideoPlayer")
+   {
+      VideoPlayer *v = (VideoPlayer *)app;
+      if (v->isFocused(ofPoint(x,y)))
+         v->mousePressed(x, y, button);
+   }
 
+   // Process buttons
    if (_homeButton && _homeButton->isFocused(ofPoint(x,y)))
    {
       _homeButton->mousePressed(x, y, button);
@@ -346,6 +385,14 @@ void AirPanel::mouseReleased(int x, int y, int button)
       if (r->isSelected())
       {
          r->mouseReleased(x, y, button);
+      }
+   }
+   else if (app->getName() == "VideoPlayer")
+   {
+      VideoPlayer *v = (VideoPlayer *)app;
+      if (v->isSelected())
+      {
+         v->mouseReleased(x, y, button);
       }
    }
 

@@ -19,11 +19,17 @@
 
 #include "TOFApp.h"
 
-#define FRAME_QUEUE_SZ		3
+#define FRAME_QUEUE_SZ		   3
+#define DEFAULT_ILLUM_POWER	100
+#define DEFAULT_EXPOSURE	   20
 
-// Frame callback
+
+//=============================================================================
+// Frame callback & Thread Control
+//=============================================================================
 static deque<Voxel::Frame *> qFrame; 
 static pthread_mutex_t gmtx;
+
 
 static void frameCallback(DepthCamera &dc, const Frame &frame, DepthCamera::FrameType c)
 {
@@ -35,7 +41,7 @@ static void frameCallback(DepthCamera &dc, const Frame &frame, DepthCamera::Fram
          qFrame.push_back(nf);
       }
       else if (c == DepthCamera::FRAME_XYZI_POINT_CLOUD_FRAME) {
-	 const Voxel::XYZIPointCloudFrame *f = dynamic_cast<const Voxel::XYZIPointCloudFrame *>(&frame);
+	      const Voxel::XYZIPointCloudFrame *f = dynamic_cast<const Voxel::XYZIPointCloudFrame *>(&frame);
          Voxel::Frame *nf = dynamic_cast<const Voxel::Frame *>(new Voxel::XYZIPointCloudFrame(*f));                    
          qFrame.push_back(nf);
       }
@@ -44,52 +50,120 @@ static void frameCallback(DepthCamera &dc, const Frame &frame, DepthCamera::Fram
 }
 
 
-// Accessors
-void TOFApp::setIllumPower(int power) 
-{ 
-   _illum_power = power; 
-}
-
-void TOFApp::setExposure(int exposure) 
+void TOFApp::lock()
 {
-   _intg = exposure;
+   pthread_mutex_lock(&_mtx);
 }
 
-void TOFApp::setDim(int w, int h) 
+
+void TOFApp::unlock()
+{
+   pthread_mutex_unlock(&_mtx);
+}
+
+
+//=============================================================================
+//  Class initialization
+//=============================================================================
+TOFApp::TOFApp()
+{
+   Init(TOF_WIDTH, TOF_HEIGHT);
+}
+
+
+TOFApp::TOFApp(int w, int h)
+{
+   Init(w, h);
+}
+
+
+void TOFApp::Init(int w, int h)
+{
+   _isRunning = false;
+   _isConnected = false;
+   _dimen.width = w;
+   _dimen.height = h;
+   _loopDelay = 33;
+   _profile = "MetrilusLongRange";
+}
+
+//=============================================================================
+// Accessors
+//=============================================================================
+
+bool TOFApp::setDim(int w, int h) 
 {
    _dimen.width=w; 
    _dimen.height=h;
+   return true;
 }
+
 
 DepthCameraPtr TOFApp::getDepthCamera() 
 {
    return _depthCamera;
 }
 
+
 FrameSize &TOFApp::getDim() 
 {
    return _dimen;
 }
 
-void TOFApp::setLoopDelay(int delay) 
+
+bool TOFApp::setLoopDelay(int delay) 
 {
    _loopDelay = delay;
+   return true;
 }
 
-int TOFApp::getLoopDelay() 
+
+bool TOFApp::getLoopDelay(int &delay) 
 {
-   return _loopDelay;
+   delay = _loopDelay;
+   return true;
 }
 
-int TOFApp::getIllumPower() 
-{ 
-   return _illum_power; 
+
+bool TOFApp::setIllumPower(int power) 
+{
+   uint p = (uint)power;
+   return _depthCamera->set("illum_power_percentage", p);
 }
 
-int TOFApp::getExposure() 
+
+bool TOFApp::getIllumPower(int &power) 
 { 
-   return _intg; 
+   uint p;
+   if (_depthCamera->get("illum_power_percentage", p)) 
+   {
+      power = (int)p;
+      return true;
+   }
+   else
+      return false; 
 }
+
+
+bool TOFApp::setExposure(int exposure) 
+{
+   uint e = (uint)exposure;
+   return _depthCamera->set("intg_duty_cycle", e);
+}
+
+
+bool TOFApp::getExposure(int &integ) 
+{ 
+   uint i;
+   if (_depthCamera->get("intg_duty_cycle", i)) 
+   {
+      integ = (int)i;
+      return true;
+   }
+   else
+      return false;
+}
+
 
 bool TOFApp::setProfile(Voxel::String name)
 {
@@ -110,6 +184,7 @@ bool TOFApp::setProfile(Voxel::String name)
    return rc;
 }
 
+
 Voxel::String TOFApp::getProfile()
 {
    return _profile;
@@ -121,14 +196,97 @@ DepthCamera::FrameType TOFApp::getFrameType()
    return _frameType;
 }
 
+
+//=============================================================================
+// Connection
+//=============================================================================
+bool TOFApp::connect(DepthCamera::FrameType frmType)
+{
+   const vector<DevicePtr> &devices = _sys.scan();
+   if (devices.size() > 0) {
+      _depthCamera = _sys.connect(devices[0]);
+      if (!_depthCamera) 
+         return false; 
+      if (!_depthCamera->isInitialized()) 
+         return false;
+   }
+   else 
+      return false;
+
+   // setup spatial and temportal median filters
+   FilterPtr p = _sys.createFilter("Voxel::MedianFilter", DepthCamera::FRAME_RAW_FRAME_PROCESSED); 
+   if (!p) 
+   {
+      logger(LOG_ERROR) << "Failed to get MedianFilter" << std::endl;
+      return -1;
+   }
+
+   _depthCamera->addFilter(p, DepthCamera::FRAME_RAW_FRAME_PROCESSED);
+  
+#if 1
+   p = _sys.createFilter("Voxel::TemporalMedianFilter",  DepthCamera::FRAME_RAW_FRAME_PROCESSED);
+   if (!p)
+   {
+      logger(LOG_ERROR) << "Failed to get TemporalMedianFilter" << std::endl;
+      return -1;
+   }
+   
+   p->set("deadband", 0.01f);
+   _depthCamera->addFilter(p, DepthCamera::FRAME_RAW_FRAME_PROCESSED);
+#endif
+
+   // Setup frame callback profile and settings
+   _frameType = frmType;
+   _depthCamera->registerCallback(_frameType, frameCallback);
+   _depthCamera->setFrameSize(_dimen);
+   if (setProfile(_profile)) 
+      cout << "Profile " << _profile << " found." << endl;
+   else 
+      cout << "Profile " << _profile << "not found." << endl;
+   setIllumPower(DEFAULT_ILLUM_POWER);
+   setExposure(DEFAULT_EXPOSURE);
+
+   // Start the camera
+   _depthCamera->start();
+   _isConnected = true;
+
+   return true;
+}
+
+
+void TOFApp::disconnect()
+{
+   _depthCamera->stop();
+}
+
+//=============================================================================
+// Run control
+//=============================================================================
 bool TOFApp::isRunning() 
 {
    return _isRunning;
 }
 
+
 bool TOFApp::isConnected() 
 {
    return _isConnected;
+}
+
+
+void TOFApp::start()
+{
+   if (!_isRunning) 
+      pthread_create(&_thread, NULL, &TOFApp::eventLoop, this);
+}
+
+
+void TOFApp::stop()
+{      
+   if (_isRunning) {
+      _isRunning = false;
+      pthread_join(_thread, NULL);
+   }
 }
 
 
@@ -173,112 +331,6 @@ void *TOFApp::eventLoop(void *p)
 
 err_exit:
    pthread_exit(NULL);
-}
-
-
-TOFApp::TOFApp()
-{
-   Init(TOF_WIDTH, TOF_HEIGHT);
-}
-
-TOFApp::TOFApp(int w, int h)
-{
-   Init(w, h);
-}
-
-void TOFApp::Init(int w, int h)
-{
-   _isRunning = false;
-   _isConnected = false;
-   _dimen.width = w;
-   _dimen.height = h;
-   _loopDelay = 66;
-   _illum_power = 100;
-   _intg = 20;
-   _profile = "MetrilusLongRange";
-}
-
-
-bool TOFApp::connect(DepthCamera::FrameType frmType)
-{
-   const vector<DevicePtr> &devices = _sys.scan();
-   if (devices.size() > 0) {
-      _depthCamera = _sys.connect(devices[0]);
-      if (!_depthCamera) 
-         return false; 
-      if (!_depthCamera->isInitialized()) 
-         return false;
-   }
-   else 
-      return false;
-              
-   _frameType = frmType;
-   _depthCamera->registerCallback(_frameType, frameCallback);
-   _depthCamera->setFrameSize(_dimen);
-   if (setProfile(_profile)) 
-      cout << "Profile " << _profile << " found." << endl;
-   else 
-      cout << "Profile " << _profile << "not found." << endl;
-   updateRegisters();
-
-#if 0
-   FilterPtr p = _sys.createFilter("Voxel::MedianFilter", DepthCamera::FRAME_RAW_FRAME_PROCESSED);
-   if (!p) {
-      logger(LOG_ERROR) << "Failed to get MedianFilter" << std::endl;
-      return false;
-   }
-   //p->set("deadband", 0.1f);
-   _depthCamera->addFilter(p, DepthCamera::FRAME_RAW_FRAME_PROCESSED, 0);
-
-   p = _sys.createFilter("Voxel::TemporalMedianFilter", DepthCamera::FRAME_RAW_FRAME_PROCESSED);
-   if (!p) {
-      logger(LOG_ERROR) << "Failed to get TemporalMedianFilter" << std::endl;
-      return false;
-   }
-   //p->set("deadband", 0.01f);
-   _depthCamera->addFilter(p, DepthCamera::FRAME_RAW_FRAME_PROCESSED, 0);
-#endif
-
-   _depthCamera->start();
-   _isConnected = true;
-
-   return true;
-}
-
-
-void TOFApp::start()
-{
-   if (!_isRunning) 
-      pthread_create(&_thread, NULL, &TOFApp::eventLoop, this);
-}
-
-void TOFApp::stop()
-{      
-   if (_isRunning) {
-      _isRunning = false;
-      pthread_join(_thread, NULL);
-   }
-}
-
-void TOFApp::updateRegisters()
-{
-   _depthCamera->set("illum_power_percentage", (uint)_illum_power);
-   _depthCamera->set("intg_duty_cycle", (uint)_intg);
-}
-
-void TOFApp::disconnect()
-{
-   _depthCamera->stop();
-}
-
-void TOFApp::lock()
-{
-   pthread_mutex_lock(&_mtx);
-}
-
-void TOFApp::unlock()
-{
-   pthread_mutex_unlock(&_mtx);
 }
 
 

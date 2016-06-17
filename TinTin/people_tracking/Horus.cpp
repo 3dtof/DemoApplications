@@ -177,9 +177,11 @@ void Horus::update(Frame *frame)
       morphologyEx(_bMat, morphMat, 2, element);
 
       // Draw contours that meet a "person" requirement
-      Mat drawing = Mat::zeros( _iMat.size(), CV_8UC3 );
+      Mat drawing = Mat::zeros( _dMat.size(), CV_8UC3 );
+//      Mat drawing = Mat::zeros( _iMat.size(), CV_8UC3 );
       Mat im_with_keypoints = Mat::zeros( _iMat.size(), CV_8UC3 );
-      cvtColor(_iMat, drawing, CV_GRAY2RGB);
+//      cvtColor(_iMat, drawing, CV_GRAY2RGB);
+      cvtColor(_dMat*0.5, drawing, CV_GRAY2RGB);
 
       int peopleCount = 0;
 

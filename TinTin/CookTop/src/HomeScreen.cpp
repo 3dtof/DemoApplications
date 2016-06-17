@@ -64,7 +64,7 @@ void HomeScreen::draw(ofPoint orig)
       if (b)
       {
          b->draw(ofPoint(_orig.x + ((i-1)%APPS_PER_ROW)*_iconSize, 
-                         _orig.y + ((i-1)%APPS_PER_ROW)*_iconSize));
+                         _orig.y + ((i-1)/APPS_PER_ROW)*_iconSize));
       }
    }
 }
@@ -103,7 +103,6 @@ void HomeScreen::mousePressed(int x, int y, int button)
       AirButton *b = _appButtons[i];
       if (b && b->isFocused(ofPoint(x,y)))
       {
-         //cout << b->getName() << " Pressed" << endl;
          b->mousePressed(x, y, button);
          break;
       }

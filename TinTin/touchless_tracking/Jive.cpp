@@ -377,8 +377,9 @@ bool Jive::findHandTips(vector< vector<cv::Point> > &contours)
       if (cv::contourArea(contours[i]) > (int)_minContourSize) 
       {
          if (_numHands < 2)
-            _handContour[_numHands] = i;
-         _numHands++;
+         {
+            _handContour[_numHands++] = i;
+         }
       }
    }
 
@@ -477,17 +478,26 @@ void Jive::update(Frame *frame)
             scaled_y = screen_height - screen_height * (_handTip[0].y-(int)_Ymin) / (int)(_Ymax-_Ymin);
             mouse.moveTo(scaled_x-(int)_Xcur, scaled_y-(int)_Ycur);
 
-            if ( (_zBkgMap.at<float>(_handTip[0]) - _zMap.at<float>(_handTip[0])) < _zTrigger)
+            if (!_bButtonDown && (_zBkgMap.at<float>(_handTip[0]) - _zMap.at<float>(_handTip[0])) < _zTrigger)
             {
                mouse.buttonDown(Button1);
                _bButtonDown = true;
                cout << "buttonDown" << endl;
             }
-            else if (_bButtonDown && (_zBkgMap.at<float>(_handTip[0])-_zMap.at<float>(_handTip[0])) > _zTrigger+0.01)
+            else if (_bButtonDown && (_zBkgMap.at<float>(_handTip[0])-_zMap.at<float>(_handTip[0])) > _zTrigger+ 0.02)
             {
                mouse.buttonUp(Button1);
                _bButtonDown = false;
                cout << "buttonUp" << endl;
+            }
+         }
+         else     // hands off screen
+         {
+            if (_bButtonDown)
+            {
+               mouse.buttonUp(Button1);
+               _bButtonDown = false;
+               cout << "ButtonUp" << endl;
             }
          }
 
