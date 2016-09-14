@@ -62,6 +62,10 @@ private:
    int _handContour[2];
    vector< vector<cv::Point> > _contours;
    float _avg[2];
+   vector<cv::Point2d> _eigenVec[2];
+   vector<double> _eigenVal[2];
+   int _wristStart[2], _wristEnd[2];
+   cv::Point _major[2], _minor[2];
 
    // Parameter map:  <ptr, precision, max>
    map< std::string, std::tuple<float*, int, float> > _param;
@@ -87,6 +91,9 @@ private:
    void removeBorderPoints(vector<cv::Point> &contour, vector<int> &hull);
    void kCurvature(vector<cv::Point> &contour, vector<int> &hull, int kmin, int kmax, double ang, vector<int> &tips);
    double findAngle(cv::Point p, cv::Point p1, cv::Point p2);
+   double getOrientation(vector<cv::Point> &pts, cv::Point &center, vector<cv::Point2d> &e_vec, vector<double> &e_val);
+   double distPoint2Line(cv::Point p1, cv::Point p2, cv::Point p);
+   void findWrists(vector<cv::Point> &contour, cv::Point palm, double radius, int &start, int &end);
 };
 
 #endif // __JIVE_H__

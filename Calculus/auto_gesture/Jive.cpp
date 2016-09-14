@@ -20,6 +20,9 @@
 #include <climits>
 #include <algorithm>
 
+#define MAJOR_AXIS      0
+#define MINOR_AXIS      1
+
 /*!
  *===========================================================================================
  * @brief   Initialize control window based on Jive parameters
@@ -146,27 +149,42 @@ void Jive::displayMaps()
    {
       for (int i=0; i < _numHands; i++) 
       {         
+         vector<cv::Point> contour = _contours[_handContour[i]];
+
          // Draw hand
          cv::drawContours(_drawing, _contours, _handContour[i], Scalar(0, 0, 255), 0, 1, vector<Vec4i>(), 0, cv::Point() ); 
 
          // Draw palm
-         cv::circle(_drawing, _palmCenter[i], (int)_palmRadius[i], Scalar(0,255,0), 1);
+         cv::circle(_drawing, _palmCenter[i], _palmRadius[i], Scalar(0,255,0), 1);       
 
-         cv::circle(_drawing, _palmCenter[i], _avg[i], Scalar(255, 0, 0), 1);
-         cv::line(_drawing, cv::Point(_Xmin, _palmCenter[i].y-(int)_palmRadius[i]), 
-                            cv::Point(_Xmax, _palmCenter[i].y-(int)_palmRadius[i]), Scalar(255, 0, 0), 1);
-         
+#if 1
+         // Draw wrist points
+         if (_wristStart[i] >= 0 && _wristEnd[i] >= 0)
+         {
+            cv::circle(_drawing, contour[_wristStart[i]], 2, Scalar(0, 255, 0), 1);
+            cv::circle(_drawing, contour[_wristEnd[i]], 2, Scalar(255, 0, 0), 1);
+            cv::line(_drawing, contour[_wristStart[i]], contour[_wristEnd[i]], CV_RGB(255, 0, 0));
+         }
+#endif
 
+#if 1
          // Draw fingertips
          for (int k=0; k < _fingerTips[i].size(); k++)
             cv::circle(_drawing, _fingerTips[i][k], 1, Scalar(0, 255, 0), 1);
-#if 0
+#endif
+
+#if 1
          // Draw defects
-         vector<cv::Point> contour = _contours[_handContour[i]];
          for (int k=0; k < _defects[i].size(); k++)
             cv::circle(_drawing, contour[_defects[i][k]], 1, Scalar(255, 0, 0), 1);
 #endif
-    
+
+#if 1
+         // Draw the principal components
+         cv::line(_drawing, _palmCenter[i], _palmCenter[i] + 0.1*_major[i], CV_RGB(255, 255, 0));
+         cv::line(_drawing, _palmCenter[i], _palmCenter[i] + 0.1*_minor[i], CV_RGB(0, 255, 255));
+#endif
+
          cv::putText(_drawing, std::to_string(_fingerTips[i].size()), cv::Point(5, 55), FONT_HERSHEY_COMPLEX_SMALL, 0.8, Scalar(255,125,50));
       } // for (i)
 
@@ -348,6 +366,41 @@ int Jive::adjPix(int pix)
    return (out<=0)?1:out;
 }
 
+/*!
+ *===========================================================================================
+ *  @brief   Get orientation of a collection of points
+ *===========================================================================================
+ */
+double Jive::getOrientation(vector<cv::Point> &pts, cv::Point &pos, vector<cv::Point2d> &e_vec, vector<double> &e_val)
+{
+    //Construct a buffer used by the pca analysis
+    Mat data_pts = Mat(pts.size(), 2, CV_64FC1);
+    for (int i = 0; i < data_pts.rows; ++i)
+    {
+        data_pts.at<double>(i, 0) = pts[i].x;
+        data_pts.at<double>(i, 1) = pts[i].y;
+    }
+
+    //Perform PCA analysis
+    PCA pca_analysis(data_pts, Mat(), CV_PCA_DATA_AS_ROW);
+ 
+    //Store the position of the object
+    pos = cv::Point(pca_analysis.mean.at<double>(0, 0),
+                    pca_analysis.mean.at<double>(0, 1));
+
+    //Store the eigenvalues and eigenvectors
+    e_vec.clear();
+    e_val.clear();
+    for (int i = 0; i < 2; ++i)
+    {
+        e_vec.push_back(cv::Point2d(pca_analysis.eigenvectors.at<double>(i, 0),
+                                  pca_analysis.eigenvectors.at<double>(i, 1)));
+        e_val.push_back(pca_analysis.eigenvalues.at<double>(0, i));
+    }
+ 
+    return atan2(e_vec[0].y, e_vec[0].x);
+}
+
 
 /*!
  *===========================================================================================
@@ -502,6 +555,58 @@ void Jive::kCurvature(vector<cv::Point> &contour, vector<int> &hull, int kmin, i
    }
 }
 
+/*!
+ *===========================================================================================
+ *  @brief   Quality hull points as fingertips based on k curvature (sharpness)
+ *===========================================================================================
+ */
+double Jive::distPoint2Line(cv::Point p1, cv::Point p2, cv::Point p)
+{
+   double y2y1 = p2.y-p1.y;
+   double x2x1 = p2.x-p1.x;
+
+   double num = abs(y2y1*p.x - x2x1*p.y + p2.x*p1.y - p2.y*p1.x);
+   double den = sqrt(y2y1*y2y1 + x2x1*x2x1);
+
+   return num/den;
+}
+
+
+/*!
+ *===========================================================================================
+ *  @brief  Find wrists
+ *===========================================================================================
+ */
+void Jive::findWrists(vector<cv::Point> &contour, cv::Point palm, double radius, int &start, int &end)
+{
+   // Find two points where contour intersects the minor we call that 'wrist'
+   cv::Point p1 = palm - cv::Point(0, radius);
+   //cv::Point p2 = p1 + _minor[i];
+   cv::Point p2 = p1 + cv::Point(1, 0);
+
+   start = end = -1;
+   for (int k=0; k < contour.size(); k++)
+   {
+      cv::Point p = contour[k];
+      double d = distPoint2Line(p1, p2, p);
+      if (start < 0 && d < 3.0f) 
+      {
+         start = k;
+         break;
+      }
+   }
+   for (int k=contour.size()-1; k >= 0; k--)
+   {
+      cv::Point p = contour[k];
+      double d = distPoint2Line(p1, p2, p);
+      if (end < 0 && d < 3.0f) 
+      {
+         end = k;
+         break;
+      }
+   }
+}
+
 
 /*!
  *===========================================================================================
@@ -525,15 +630,10 @@ bool Jive::findFingertips(vector< vector<cv::Point> > &contours)
    // Find number of qualified hands and remember their contour index
    _numHands = 0;
    for (int i=0; i<contours.size(); i++) 
-   {
       if (cv::contourArea(contours[i]) > (int)_minContourSize) 
-      {
          if (_numHands < 2)
-         {
             _handContour[_numHands++] = i;
-         }
-      }
-   }
+
 
    // Find palms
    if (_numHands > 0 && _numHands <= 2) 
@@ -543,67 +643,91 @@ bool Jive::findFingertips(vector< vector<cv::Point> > &contours)
          vector<int> hulls;
          vector<cv::Point> contour = contours[_handContour[i]];
 
-         // Find palm center
+         _fingerTips[i].clear();
+
+         // Find hand orientation 
+         getOrientation(contour, _palmCenter[i], _eigenVec[i], _eigenVal[i]);
+         _major[i] = cv::Point(_eigenVec[i][MAJOR_AXIS].x * _eigenVal[i][MAJOR_AXIS], 
+                                     _eigenVec[i][MAJOR_AXIS].y * _eigenVal[i][MAJOR_AXIS]);
+         _minor[i] = cv::Point(_eigenVec[i][MINOR_AXIS].x * _eigenVal[i][MINOR_AXIS], 
+                                     _eigenVec[i][MINOR_AXIS].y * _eigenVal[i][MINOR_AXIS]);
+
+         // Find palm center and depth
          findPalmCenter(contour, _palmCenter[i], _palmRadius[i]);
          _palmDepth[i] = _zMap.at<float>(_palmCenter[i].x, _palmCenter[i].y);
 
-         // Find radial distance and average
-         float d;
-         vector<float> dist;
-         float sum = 0;
-         int count = 0;
 
-         dist.clear();
-         for (int k=0; k < contour.size(); k++) 
+         // Find convex hulls and defects
+         findKeyPoints(contour, _hulls[i], _defects[i], 4);
+
+
+
+         // Find two points where contour intersects the minor we call that 'wrist'
+         findWrists(contour, _palmCenter[i], _palmRadius[i], _wristStart[i], _wristEnd[i]);
+
+
+         // Find longest point in each segment along the contour starting
+         // from wristStart and ends with wristEnd.  Segments along the way
+         // are delineated by convexity defects.
+         //if (_wristStart[i] >= 0 && _wristEnd[i] >= 0) 
+         if (_wristStart[i] >= 0 && _wristEnd[i] >= 0 && cv::norm(_wristStart[i]-_wristEnd[i]) > 5)
          {
-            cv::Point dx = _palmCenter[i] - contour[k];
-            d = (float)sqrt(dx.x * dx.x + dx.y * dx.y);
-            dist.push_back(d);
+            int start = _wristStart[i];
+            int next = 0;
+            int maxIdx = -1;
+            double maxDist = 0;
+            cv::Point p1, p2;
 
-            if (contour[k].y > _palmCenter[i].y - (int)_palmRadius[i])
+            // Find longest point between starting point and end point
+            _fingerTips[i].clear();
+            for (int k=0; k < _defects[i].size(); k++)
             {
-               sum += (float)d;
-               count++;
-            }
-         }
-         _avg[i] = sum/count;
-
-         
-         // Find tips exceeding average
-         bool inMode = false;
-         float modeMax = 0;
-         int maxIdx = -1;
-         cv::Point startPoint, endPoint;
-         _fingerTips[i].clear();
-        
-         for (int k=0; k < contour.size(); k++)
-         {
-            if (contour[k].y > _palmCenter[i].y - (int)_palmRadius[i])
-            {
-               float delta = dist[k]-_avg[i];
-               if (!inMode && delta > 0)
+               maxDist = 0;
+               maxIdx = -1;           
+               next = _defects[i][k];
+               
+               p1 = contour[start];
+               p2 = contour[next];
+               for (int j=start+1; j < next; j++)
                {
-                  inMode = true;
-                  startPoint = contour[k];
-                  modeMax = 0;
-                  maxIdx = -1;
+                  cv::Point p = contour[j];
+                  double d = cv::norm(p-p1) + cv::norm(p-p2);
+                  if (d > maxDist) 
+                  {
+                     maxDist = d;
+                     maxIdx = j;
+                  }
                }
-               else if (inMode && delta <= 0)
-               {
-                  inMode = false;
-                  endPoint = contour[k];
-                  if (maxIdx >= 0 && modeMax > 3 && findAngle(_palmCenter[i], startPoint, endPoint) < 45.0f)
+               // qualify tip by angle
+               if (maxIdx >= 0 && findAngle(contour[maxIdx], p1, p2) < 60)
                      _fingerTips[i].push_back(contour[maxIdx]);
-               }
 
-               if (inMode && delta > modeMax)
+               start = next;
+            }
+
+            // One more segment between last defect start and _wristEnd[i]
+            maxDist = 0;
+            maxIdx = -1;           
+            next = _wristEnd[i];
+               
+            p1 = contour[start];
+            p2 = contour[next];
+            for (int j=start; j < next; j++)
+            {
+               cv::Point p = contour[j];
+               double d = cv::norm(p-p1) + cv::norm(p-p2);
+               if (d > maxDist) 
                {
-                  modeMax = delta;
-                  maxIdx = k;
+                  maxDist = d;
+                  maxIdx = j;
                }
-            } 
+            }
+            // qualify tip
+            if (maxIdx >= 0 && _defects[i].size() > 0 && findAngle(contour[maxIdx], p1, p2) < 60)
+               _fingerTips[i].push_back(contour[maxIdx]);
          }
-      } // for (k)
+      } // for (i)
+
 
       // Straighten out left vs right hand
       if (_numHands == 2 && _palmCenter[0].x < _palmCenter[1].x)
@@ -617,7 +741,7 @@ bool Jive::findFingertips(vector< vector<cv::Point> > &contours)
          _leftHand = 0;
       }
       
-   } // if (i) 
+   } // if (numHand)
 
    return found;
 }
