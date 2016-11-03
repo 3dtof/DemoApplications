@@ -185,7 +185,10 @@ void Jive::displayMaps()
          cv::line(_drawing, _palmCenter[i], _palmCenter[i] + 0.1*_minor[i], CV_RGB(0, 255, 255));
 #endif
 
+      if (i==_rightHand)
          cv::putText(_drawing, std::to_string(_fingerTips[i].size()), cv::Point(5, 55), FONT_HERSHEY_COMPLEX_SMALL, 0.8, Scalar(255,125,50));
+      else if (i==_leftHand)
+         cv::putText(_drawing, std::to_string(_fingerTips[i].size()), cv::Point(55, 55), FONT_HERSHEY_COMPLEX_SMALL, 0.8, Scalar(255,125,50));
       } // for (i)
 
    }
@@ -417,7 +420,7 @@ void Jive::findKeyPoints(vector<cv::Point> &contour, vector<int> &hulls, vector<
    if (hulls.size() > 3)
    {
       convexityDefects(contour, hulls, convDef);
-      for (int k=1; k<convDef.size(); k++) {  // first defect is false
+      for (int k=0; k<convDef.size(); k++) {  // first defect is false
          if (convDef[k][3] > depth*256) {
             int ind = convDef[k][2];
             defects.push_back(ind);

@@ -21,7 +21,7 @@
 
 #define FRAME_QUEUE_SZ		   3
 #define DEFAULT_ILLUM_POWER	100
-#define DEFAULT_EXPOSURE	   20
+#define DEFAULT_EXPOSURE	   30
 
 
 //=============================================================================
