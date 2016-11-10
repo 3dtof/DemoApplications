@@ -133,7 +133,7 @@ bool TOFApp::connect()
     {
       std::cout << p.first << ", " << p.second;
 
-      if (p.second == "MetrilusLongRange")
+      if (p.second == "Calibrated Normal")
          profile_id = p.first;
       
       ConfigurationFile *c = _depthCamera->configFile.getCameraProfile(p.first);
