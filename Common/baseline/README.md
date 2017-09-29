@@ -1,8 +1,8 @@
 
-#Notes on baseline
+# Notes on baseline
 
 
-#Introduction
+<h1>Introduction</h1>
 
 'baseline' is an example project based on Voxel SDK.  It has these components:
 
@@ -33,7 +33,7 @@
 
 
 
-#Compile baseline 
+<h1>Compile baseline</h1> 
 
 To build baseline:
 
@@ -44,7 +44,7 @@ To build baseline:
 	./app 	 	# run it
 
 
-#Create your own application based on 'baseline'
+<h1>Create your own application based on 'baseline'</h1>
 
 1.  Create your own class derived from Grabber (replacing Basic).  
     Put most, if not all application-specific features in this class.  Do not touch Grabber.
