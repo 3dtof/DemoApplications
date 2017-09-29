@@ -1,39 +1,39 @@
 
-# Notes on baseline
+# baseline
 
 
-<h1>Introduction</h1>
+<h2>Introduction</h2>
 
 'baseline' is an example project based on Voxel SDK.  It has these components:
 
 
-<h2>Grabber - (grabber.h, grabber.cpp)</h2> 
+<h3>Grabber - (grabber.h, grabber.cpp)</h3> 
 
 	"Wrapper" class over the Voxel::DepthCamera class.  It provide basic TOF camera support. 
 
 
-<h2>Basic - (basic.h basic.cpp)</h2>
+<h3>Basic - (basic.h basic.cpp)</h3>
 
 	Example application-specific class built on top of Grabber.  Generally this 
        	class and app.cpp should be customized, while other should left untouched.
 
 
-<h2>CvDisplay - (cvdisplay.h cvdisplay.cpp)</h2>
+<h3>CvDisplay - (cvdisplay.h cvdisplay.cpp)</h3>
 
 	OpenCV GUI interface that can display images and set sliders
 
 
-<h2>CvUtil - (cvutil.h cvutil.cpp)</h2>
+<h3>CvUtil - (cvutil.h cvutil.cpp)</h3>
 
 	Simple utility class currently only providing console getkey() function
 
 
-<h2>app.cpp</h2> 
+<h3>app.cpp</h3> 
 	Example applicaiton main() containing choice of looped execution or callback execution.
 
 
 
-<h1>Compile baseline</h1> 
+<h2>Compile baseline</h2> 
 
 To build baseline:
 
@@ -44,7 +44,7 @@ To build baseline:
 	./app 	 	# run it
 
 
-<h1>Create your own application based on 'baseline'</h1>
+<h2>Create your own application based on 'baseline'</h2>
 
 1.  Create your own class derived from Grabber (replacing Basic).  
     Put most, if not all application-specific features in this class.  Do not touch Grabber.
