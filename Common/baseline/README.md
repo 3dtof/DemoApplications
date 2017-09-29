@@ -52,6 +52,6 @@ To build baseline:
     For instance, if you want to create a handtracking recognizer, replace Basic with HandTracker
     and implement and encapsulate hand-tracking algorithms/data inside this class.
 
-2.  Update main.cpp and CMakeLists.txt as required.
+2.  Update app.cpp and CMakeLists.txt as required.
  
 3.  Build and run 
