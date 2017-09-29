@@ -4,16 +4,19 @@ Notes on baseline
 
 == Introduction
 
-'baseline' is an example project based on Voxel SDK.  It has three major components:
+'baseline' is an example project based on Voxel SDK.  It has these components:
+
 
 Grabber - (grabber.h, grabber.cpp) 
 
 	"Wrapper" class over the Voxel::DepthCamera class.  It provide basic TOF camera support. 
 
+
 Basic - (basic.h basic.cpp)
 
-	Example application-specific class that build on top of Grabber.  Generally this 
-       	module and the main.cpp is what should be customized.
+	Example application-specific class built on top of Grabber.  Generally this 
+       	class and app.cpp should be customized, while other should left untouched.
+
 
 CvDisplay - (cvdisplay.h cvdisplay.cpp)
 
@@ -24,7 +27,9 @@ CvUtil - (cvutil.h cvutil.cpp)
 
 	Simple utility class currently only providing console getkey() function
 
+
 app.cpp - example main() containing example of looped execution or callback execution.
+
 
 
 == Compile baseline 
