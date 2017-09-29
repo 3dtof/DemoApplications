@@ -21,3 +21,7 @@ This repository holds various demo applications, organised according to chipset 
 	simple_people_tracking - demo running on Debian 8.3 (AM437x Rico board) using Voxel 
 					SDK that shows people tracking/counting using blob and contour analysis
 
+<h1>Common</h1>
+
+    baseline - Generic Voxel SDK application starting point good for both Tintin and Calculus. 
+    		Copy it and customize.
