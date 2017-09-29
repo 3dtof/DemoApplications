@@ -30,17 +30,17 @@ public:
     Basic(DepthCameraPtr depthCamera, FrameFlag flag, CameraSystem &sys);
     ~Basic();
     void update(DepthFrame *frm);
-    cv::Mat* getAmpMat() { return &_ampMat; }
-    cv::Mat* getPhaseMat() { return &_phaseMat; }
+    void update(ToFRawFrame *frm);
+    bool addMat(std::string name, cv::Mat *mat);
+    cv::Mat* getMat(std::string);
     void rawFrameToMat(Voxel::ToFRawFrame *frame, cv::Mat &phase, cv::Mat &amplitude);
-    bool depthFrameToMat(Voxel::DepthFrame *frame, cv::Mat &depth, cv::Mat &amplitude);
+    void depthFrameToMat(Voxel::DepthFrame *frame, cv::Mat &depth, cv::Mat &amplitude);
 
 protected:
     void _init();
 
 private:
-    cv::Mat _ampMat;
-    cv::Mat _phaseMat;
+    std::map< std::string, cv::Mat* > _imageMap;
     int _width, _height;
     float _ampGain;
 };

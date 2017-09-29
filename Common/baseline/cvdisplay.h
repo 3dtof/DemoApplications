@@ -39,7 +39,6 @@ private:
     std::map< std::string, paramType > _sliderData;
     std::map< std::string, cv::Mat * > _image;
     std::map< std::string, paramType > _param;
-    cv::Mat _sliderMat;
 };
 
 

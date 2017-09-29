@@ -9,9 +9,9 @@ set(VOXEL_INCLUDE_DIRS . /usr/include/voxel /usr/include/voxel/pcl /usr/include/
 #set(VOXEL_LIBRARIES /usr/lib/libti3dtof.so /usr/lib/libvoxel.so /usr/lib/libvoxelpcl.so)
 set(VOXEL_LIBRARIES /usr/lib/libti3dtof.so /usr/lib/libvoxel.so) 
 
-add_executable(main main.cpp basic.cpp grabber.cpp cvdisplay.cpp cvutil.cpp)
-target_include_directories(main PUBLIC ${VOXEL_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${EIGEN_INCLUDE_DIRS})
-target_link_libraries(main voxelpcl X11 ${OpenCV_LIBS} ${VOXEL_LIBRARIES} ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_VISUALIZATION_LIBRARIES})
+add_executable(app app.cpp basic.cpp grabber.cpp cvdisplay.cpp cvutil.cpp)
+target_include_directories(app PUBLIC ${VOXEL_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${EIGEN_INCLUDE_DIRS})
+target_link_libraries(app voxelpcl X11 ${OpenCV_LIBS} ${VOXEL_LIBRARIES} ${PCL_COMMON_LIBRARIES} ${PCL_IO_LIBRARIES} ${PCL_VISUALIZATION_LIBRARIES})
 
 IF(LINUX)
   set(CPACK_COMPONENTS_ALL apps)

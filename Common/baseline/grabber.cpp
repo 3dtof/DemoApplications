@@ -229,7 +229,6 @@ void Grabber::run()
     while (!_updateDone)
     {
         _update(this, _userPtr);
-        usleep(1000);
     }
 }
 

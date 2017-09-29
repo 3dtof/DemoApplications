@@ -12,7 +12,8 @@ Grabber - (grabber.h, grabber.cpp)
 
 Basic - (basic.h basic.cpp)
 
-	Example application-specific class that build on top of Grabber.
+	Example application-specific class that build on top of Grabber.  Generally this 
+       	module and the main.cpp is what should be customized.
 
 CvDisplay - (cvdisplay.h cvdisplay.cpp)
 
@@ -23,7 +24,7 @@ CvUtil - (cvutil.h cvutil.cpp)
 
 	Simple utility class currently only providing console getkey() function
 
-main.cpp - example main().
+app.cpp - example main() containing example of looped execution or callback execution.
 
 
 == Compile baseline 
@@ -34,7 +35,7 @@ To build baseline:
 	cd build
 	cmake ..
 	make
-	./main 	 	# run it
+	./app 	 	# run it
 
 
 == Create your own application based on 'baseline'
