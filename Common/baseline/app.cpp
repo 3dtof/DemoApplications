@@ -15,16 +15,95 @@
 #include "basic.h"
 #include "cvutil.h"
 #include "cvdisplay.h"
+#include "SimpleOpt.h"
 
-CvDisplay disp;
+enum Options
+{
+   SET_PROFILE = 0,
+   SHOW_GUI = 1,
+};
+
+Vector<CSimpleOpt::SOption> argumentSpecifications = 
+{
+   { SET_PROFILE, 	"-p", SO_REQ_SEP, "Profile to load" },
+   { SHOW_GUI	, 	"-g", SO_NONE, "Display GUI" },
+};
+
+
+CvDisplay *disp = NULL;
 float ampGain = 0.005;
 float phaseGain = 0.001;
 float depthGain = 0.5;
+
+bool showGUI = false;
+bool setProfile = false;
+String profileName = "(none)";
+
+
+void help()
+{
+   CSimpleOpt::SOption *option = argumentSpecifications.data();
+
+   while (option->nId >= 0)
+   {
+      std::cout << option->pszArg << " " << option->helpInfo << std::endl;
+      option++;
+   } 
+}
+
+
+bool processArgs(CSimpleOpt &s)
+{
+   bool rc = false;
+
+   while (s.Next())
+   {
+      if (s.LastError() != SO_SUCCESS)
+      {
+         std::cout << s.GetLastErrorText(s.LastError()) << ": '" << s.OptionText() 
+                   << "' (use -h to get command line help)" << std::endl;
+         help();
+         return false; 
+      }
+
+      Vector<String> splits;
+
+      switch (s.OptionId())
+      {
+         case SET_PROFILE:
+	    setProfile = true;
+            profileName = s.OptionArg();
+            break;
+
+         case SHOW_GUI:
+            showGUI = true; 
+            break;
+
+         default:
+	    help();
+ 	    break;
+      };
+   }
+
+   return true;
+}
+
 
 #if 0  // Looped execution
 
 int main(int argc, char *argv[])
 {
+    CSimpleOpt s(argc, argv, argumentSpecifications);
+    
+    if ( !processArgs(s) )
+    {
+       help();
+       exit (-1);
+    }
+
+    logger.setDefaultLogLevel(LOG_ERROR);
+
+
     int key;
     bool done = false;
     CvUtil util;
@@ -39,23 +118,30 @@ int main(int argc, char *argv[])
     DepthCameraPtr dc = sys.connect(devices[0]);
     Basic eye(dc, Grabber::FRAMEFLAG_ALL, sys);
 
-   
-    if (!eye.setProfile("MetrilusLongRange"))
-    {
-        std::cout << "Error: cannot set MetrilusLongRangeProfile." << std::endl;
-        exit(-1);
+
+    if (setProfile)
+    {   
+       if (!eye.setProfile(profileName))
+       {
+          std::cout << "Error: cannot set " << profileName << std::endl;
+          exit(-1);
+       }
     }
 
-    disp.addImage("amplitude", eye.getMat("amplitude"));
-    disp.addImage("depth", eye.getMat("depth"));
-    disp.addImage("phase", eye.getMat("phase"));
+    if (showGUI)
+    {
+       disp = new CvDisplay;
+       disp->addImage("amplitude", eye.getMat("amplitude"));
+       disp->addImage("depth", eye.getMat("depth"));
+       disp->addImage("phase", eye.getMat("phase"));
 
-    disp.addParam("ampGain", &ampGain, 0.01, 10000);
-    disp.addSlider("ampGain");
-    disp.addParam("depthGain", &depthGain, 1.0, 10000);
-    disp.addSlider("depthGain");
-    disp.addParam("phaseGain", &phaseGain, 0.01, 10000);
-    disp.addSlider("phaseGain");
+       disp->addParam("ampGain", &ampGain, 0.01, 10000);
+       disp->addSlider("ampGain");
+       disp->addParam("depthGain", &depthGain, 1.0, 10000);
+       disp->addSlider("depthGain");
+       disp->addParam("phaseGain", &phaseGain, 0.01, 10000);
+       disp->addSlider("phaseGain");
+    }
 
     if (eye.isInitialized())
     {
@@ -69,8 +155,10 @@ int main(int argc, char *argv[])
             if (depthFrame) 
             {        
                 eye.update(depthFrame);
-                //disp.showImage("amplitude", ampGain);
-                disp.showImage("depth", depthGain);
+                if (showGUI)
+                {
+                   disp->showImage("depth", depthGain);
+                }
                 delete depthFrame;
             }
 
@@ -82,8 +170,11 @@ int main(int argc, char *argv[])
                 if (frame) 
                 {        
                     eye.update(frame);
-                    disp.showImage("amplitude", ampGain);
-                    disp.showImage("phase", phaseGain);
+                    if (showGUI)
+                    {
+                       disp->showImage("amplitude", ampGain);
+                       disp->showImage("phase", phaseGain);
+                    }
                 }
             }
 
@@ -111,8 +202,10 @@ void myUpdate(Grabber *grabber, void *ptr)
     if (depthFrame) 
     {        
         eye->update(depthFrame);
-        //disp.showImage("amplitude", ampGain);
-        disp.showImage("depth", depthGain);
+        if (showGUI)
+        {
+           disp->showImage("depth", depthGain);
+        }
         delete depthFrame;
     }
 
@@ -124,8 +217,11 @@ void myUpdate(Grabber *grabber, void *ptr)
         if (frame) 
         {        
             eye->update(frame);
-            disp.showImage("amplitude", ampGain);
-            disp.showImage("phase", phaseGain);
+            if (showGUI)
+            {
+               disp->showImage("amplitude", ampGain);
+               disp->showImage("phase", phaseGain);
+            }
         }
     }
 
@@ -138,6 +234,16 @@ void myUpdate(Grabber *grabber, void *ptr)
 
 int main(int argc, char *argv[])
 {
+    CSimpleOpt s(argc, argv, argumentSpecifications);
+    if (!processArgs(s) )
+    {
+	help();
+        exit(-1);
+    }
+
+    logger.setDefaultLogLevel(LOG_ERROR);
+
+
     int key;
     bool done = false;
     CvUtil util;
@@ -153,23 +259,30 @@ int main(int argc, char *argv[])
     DepthCameraPtr dc = sys.connect(devices[0]);
     Basic eye(dc, Grabber::FRAMEFLAG_ALL , sys);
 
-    if (!eye.setProfile("MetrilusLongRange"))
+    if (setProfile)  
     {
-        std::cout << "Error: cannot set MetrilusLongRangeProfile." << std::endl;
-        exit(-1);
+       if (!eye.setProfile(profileName))
+       {
+          std::cout << "Error: cannot set " << profileName << std::endl;
+          exit(-1);
+       }
     }
 
     // Create display
-    disp.addImage("amplitude", eye.getMat("amplitude"));
-    disp.addImage("depth", eye.getMat("depth"));
-    disp.addImage("phase", eye.getMat("phase"));
+    if (showGUI)
+    {
+       disp = new CvDisplay;
+       disp->addImage("amplitude", eye.getMat("amplitude"));
+       disp->addImage("depth", eye.getMat("depth"));
+       disp->addImage("phase", eye.getMat("phase"));
 
-    disp.addParam("ampGain", &ampGain, 0.01, 10000);
-    disp.addSlider("ampGain");
-    disp.addParam("depthGain", &depthGain, 1.0, 10000);
-    disp.addSlider("depthGain");
-    disp.addParam("phaseGain", &phaseGain, 0.01, 10000);
-    disp.addSlider("phaseGain");
+       disp->addParam("ampGain", &ampGain, 0.01, 10000);
+       disp->addSlider("ampGain");
+       disp->addParam("depthGain", &depthGain, 1.0, 10000);
+       disp->addSlider("depthGain");
+       disp->addParam("phaseGain", &phaseGain, 0.01, 10000);
+       disp->addSlider("phaseGain");
+    }
 
     // Start camera
     if (eye.isInitialized())

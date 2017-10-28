@@ -16,6 +16,7 @@
 
 	Example application-specific class built on top of Grabber.  Generally this 
        	class and app.cpp should be customized, while other should left untouched.
+        Please do rename the file to properly reflect your custom derived Grabber.
 
 
 <h3>CvDisplay - (cvdisplay.h cvdisplay.cpp)</h3>
